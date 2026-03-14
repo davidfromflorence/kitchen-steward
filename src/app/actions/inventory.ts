@@ -37,20 +37,27 @@ export async function addItem(formData: FormData) {
   const category = (formData.get('category') as string) || 'General'
   const expiry_date = formData.get('expiry_date') as string | null
 
-  const { error } = await supabase.from('inventory_items').insert([
-    {
-      household_id: householdId,
-      name,
-      quantity,
-      unit,
-      category,
-      expiry_date: expiry_date || null,
-    },
-  ])
+  const { data: inserted, error } = await supabase
+    .from('inventory_items')
+    .insert([
+      {
+        household_id: householdId,
+        name,
+        quantity,
+        unit,
+        category,
+        expiry_date: expiry_date || null,
+      },
+    ])
+    .select()
 
   if (error) {
     console.error('Error adding item:', error)
     return { error: error.message }
+  }
+
+  if (!inserted || inserted.length === 0) {
+    return { error: `RLS blocked insert. household_id=${householdId}` }
   }
 
   revalidateAll()
@@ -85,11 +92,18 @@ export async function addItems(
     }
   })
 
-  const { error } = await supabase.from('inventory_items').insert(rows)
+  const { data: inserted, error } = await supabase
+    .from('inventory_items')
+    .insert(rows)
+    .select()
 
   if (error) {
     console.error('Error adding items:', error)
     return { error: error.message }
+  }
+
+  if (!inserted || inserted.length === 0) {
+    return { error: `RLS blocked insert. household_id=${householdId}, items=${rows.length}` }
   }
 
   revalidateAll()
