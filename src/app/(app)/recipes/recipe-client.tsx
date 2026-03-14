@@ -143,28 +143,26 @@ export default function RecipeClient({
             Recipe Parameters
           </h2>
         </div>
-        <div className="px-6 py-5 flex flex-col gap-4">
+        <div className="px-6 py-5 flex flex-col gap-5">
           {/* Cooking Time */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Cooking Time
             </label>
-            <div className="overflow-x-auto -mx-1 px-1">
-              <div className="flex gap-2">
-                {COOKING_TIMES.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setCookingTime(opt.value)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
-                      cookingTime === opt.value
-                        ? 'bg-olive-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+            <div className="flex rounded-xl bg-slate-100 p-1">
+              {COOKING_TIMES.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setCookingTime(opt.value)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                    cookingTime === opt.value
+                      ? 'bg-olive-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-800'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -173,22 +171,20 @@ export default function RecipeClient({
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Ingredients
             </label>
-            <div className="overflow-x-auto -mx-1 px-1">
-              <div className="flex gap-2">
-                {INGREDIENT_COUNTS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setIngredientCount(opt.value)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
-                      ingredientCount === opt.value
-                        ? 'bg-olive-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+            <div className="flex rounded-xl bg-slate-100 p-1">
+              {INGREDIENT_COUNTS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setIngredientCount(opt.value)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                    ingredientCount === opt.value
+                      ? 'bg-olive-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-800'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -197,22 +193,20 @@ export default function RecipeClient({
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Servings
             </label>
-            <div className="overflow-x-auto -mx-1 px-1">
-              <div className="flex gap-2">
-                {SERVING_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setServings(opt.value)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
-                      servings === opt.value
-                        ? 'bg-olive-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+            <div className="flex rounded-xl bg-slate-100 p-1">
+              {SERVING_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setServings(opt.value)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                    servings === opt.value
+                      ? 'bg-olive-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-800'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -221,64 +215,25 @@ export default function RecipeClient({
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Diet
             </label>
-            <div className="overflow-x-auto -mx-1 px-1">
-              <div className="flex gap-2">
-                {DIET_OPTIONS.map((diet) => {
-                  const isSelected = selectedDiets.includes(diet)
-                  return (
-                    <button
-                      key={diet}
-                      onClick={() => toggleDiet(diet)}
-                      className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
-                        isSelected
-                          ? 'bg-olive-600 text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {diet}
-                    </button>
-                  )
-                })}
-              </div>
+            <div className="flex rounded-xl bg-slate-100 p-1 overflow-x-auto scrollbar-hide">
+              {DIET_OPTIONS.map((diet) => {
+                const isSelected = selectedDiets.includes(diet)
+                return (
+                  <button
+                    key={diet}
+                    onClick={() => toggleDiet(diet)}
+                    className={`flex-shrink-0 flex-1 min-w-fit px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      isSelected
+                        ? 'bg-olive-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-800'
+                    }`}
+                  >
+                    {diet}
+                  </button>
+                )
+              })}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Pantry Ingredients */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-          <h2 className="text-lg font-bold text-slate-800">
-            Your Ingredients
-          </h2>
-        </div>
-        <div className="px-6 py-4 flex flex-wrap gap-2">
-          {ingredients.map((item) => {
-            let colorClasses: string
-            if (item.daysLeft <= 1) {
-              colorClasses = 'bg-red-50 text-red-700 border-red-200'
-            } else if (item.daysLeft <= 3) {
-              colorClasses = 'bg-amber-50 text-amber-700 border-amber-200'
-            } else {
-              colorClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            }
-
-            return (
-              <span
-                key={item.name}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border ${colorClasses}`}
-              >
-                {item.name}
-                <span className="text-xs font-bold opacity-75">
-                  {item.daysLeft <= 0
-                    ? 'expired'
-                    : item.daysLeft === 1
-                      ? '1d'
-                      : `${item.daysLeft}d`}
-                </span>
-              </span>
-            )
-          })}
         </div>
       </div>
 
