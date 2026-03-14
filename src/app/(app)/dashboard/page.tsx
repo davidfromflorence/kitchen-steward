@@ -21,7 +21,8 @@ function getGreeting(): string {
   return 'Good Evening'
 }
 
-function daysUntilExpiry(expiryDate: string): number {
+function daysUntilExpiry(expiryDate: string | null): number {
+  if (!expiryDate) return 999
   return Math.ceil(
     (new Date(expiryDate).getTime() - Date.now()) / 86_400_000
   )
@@ -77,7 +78,7 @@ export default async function DashboardPage() {
   const fillPct = Math.min(Math.round((totalItems / 30) * 100), 100)
 
   const expiringSoonItems = inventory
-    .filter((item) => daysUntilExpiry(item.expiry_date) >= 0)
+    .filter((item) => item.expiry_date && daysUntilExpiry(item.expiry_date) >= 0)
     .slice(0, 3)
 
   const firstName = profile.full_name?.split(' ')[0] || 'Chef'

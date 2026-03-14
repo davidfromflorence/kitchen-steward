@@ -33,9 +33,11 @@ export default async function RecipesPage() {
 
   const ingredients = inventory.map((item) => ({
     name: item.name as string,
-    daysLeft: Math.ceil(
-      (new Date(item.expiry_date).getTime() - Date.now()) / 86400000
-    ),
+    daysLeft: item.expiry_date
+      ? Math.ceil(
+          (new Date(item.expiry_date).getTime() - Date.now()) / 86400000
+        )
+      : 999,
   }))
 
   return (
