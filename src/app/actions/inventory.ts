@@ -42,6 +42,7 @@ export async function addItem(formData: FormData) {
   }
 
   revalidatePath('/dashboard')
+  revalidatePath('/fridge')
 }
 
 export async function addItems(
@@ -93,6 +94,7 @@ export async function addItems(
   }
 
   revalidatePath('/dashboard')
+  revalidatePath('/fridge')
 }
 
 export async function deleteItem(formData: FormData) {
@@ -116,6 +118,7 @@ export async function deleteItem(formData: FormData) {
   }
 
   revalidatePath('/dashboard')
+  revalidatePath('/fridge')
 }
 
 export async function useItem(formData: FormData) {
@@ -146,4 +149,5 @@ export async function useItem(formData: FormData) {
   }
 
   revalidatePath('/dashboard')
+  revalidatePath('/fridge')
 }

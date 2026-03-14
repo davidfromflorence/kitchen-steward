@@ -2,7 +2,6 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { Users, ArrowRight, Crown } from 'lucide-react'
 import CopyCodeButton from './copy-code-button'
-import NavBar from '@/app/components/nav-bar'
 
 export default async function HouseholdPage({
   searchParams,
@@ -148,7 +147,6 @@ export default async function HouseholdPage({
         </a>
       )}
 
-      <NavBar />
     </div>
   )
 }

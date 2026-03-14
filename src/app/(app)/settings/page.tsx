@@ -2,7 +2,6 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { Settings, User, Home, ArrowRight, LogOut } from 'lucide-react'
 import { logout } from '@/app/login/actions'
-import NavBar from '@/app/components/nav-bar'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -130,7 +129,6 @@ export default async function SettingsPage() {
 
       </div>
 
-      <NavBar />
     </div>
   )
 }
