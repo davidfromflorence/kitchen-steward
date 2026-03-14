@@ -2,14 +2,15 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 
-export async function addItem(formData: FormData) {
+async function getAuthAndHousehold() {
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  if (!user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('users')
@@ -17,7 +18,18 @@ export async function addItem(formData: FormData) {
     .eq('id', user.id)
     .single()
 
-  if (!profile?.household_id) throw new Error('No household')
+  if (!profile?.household_id) redirect('/setup')
+
+  return { supabase, householdId: profile.household_id }
+}
+
+function revalidateAll() {
+  revalidatePath('/dashboard')
+  revalidatePath('/fridge')
+}
+
+export async function addItem(formData: FormData) {
+  const { supabase, householdId } = await getAuthAndHousehold()
 
   const name = formData.get('name') as string
   const quantity = Number(formData.get('quantity')) || 1
@@ -27,7 +39,7 @@ export async function addItem(formData: FormData) {
 
   const { error } = await supabase.from('inventory_items').insert([
     {
-      household_id: profile.household_id,
+      household_id: householdId,
       name,
       quantity,
       unit,
@@ -38,11 +50,11 @@ export async function addItem(formData: FormData) {
 
   if (error) {
     console.error('Error adding item:', error)
-    throw new Error('Failed to add item')
+    return { error: error.message }
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/fridge')
+  revalidateAll()
+  return { success: true }
 }
 
 export async function addItems(
@@ -54,20 +66,7 @@ export async function addItems(
     expiry_days?: number
   }>
 ) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('household_id')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.household_id) throw new Error('No household')
+  const { supabase, householdId } = await getAuthAndHousehold()
 
   const rows = items.map((item) => {
     const expiry_date = item.expiry_days
@@ -77,11 +76,11 @@ export async function addItems(
       : null
 
     return {
-      household_id: profile.household_id,
+      household_id: householdId,
       name: item.name,
-      quantity: item.quantity,
-      unit: item.unit,
-      category: item.category,
+      quantity: item.quantity || 1,
+      unit: item.unit || 'pz',
+      category: item.category || 'General',
       expiry_date,
     }
   })
@@ -90,21 +89,15 @@ export async function addItems(
 
   if (error) {
     console.error('Error adding items:', error)
-    throw new Error('Failed to add items')
+    return { error: error.message }
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/fridge')
+  revalidateAll()
+  return { success: true }
 }
 
 export async function deleteItem(formData: FormData) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-
+  const { supabase } = await getAuthAndHousehold()
   const id = formData.get('id') as string
 
   const { error } = await supabase
@@ -114,21 +107,15 @@ export async function deleteItem(formData: FormData) {
 
   if (error) {
     console.error('Error deleting item:', error)
-    throw new Error('Failed to delete item')
+    return { error: error.message }
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/fridge')
+  revalidateAll()
+  return { success: true }
 }
 
 export async function useItem(formData: FormData) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-
+  const { supabase } = await getAuthAndHousehold()
   const id = formData.get('id') as string
 
   const { data: item } = await supabase
@@ -137,7 +124,7 @@ export async function useItem(formData: FormData) {
     .eq('id', id)
     .single()
 
-  if (!item) throw new Error('Item not found')
+  if (!item) return { error: 'Item not found' }
 
   if (item.quantity <= 1) {
     await supabase.from('inventory_items').delete().eq('id', id)
@@ -148,6 +135,6 @@ export async function useItem(formData: FormData) {
       .eq('id', id)
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/fridge')
+  revalidateAll()
+  return { success: true }
 }
