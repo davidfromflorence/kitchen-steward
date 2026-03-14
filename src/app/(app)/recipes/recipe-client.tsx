@@ -28,18 +28,23 @@ interface RecipeData {
 }
 
 const COOKING_TIMES = [
-  { label: 'Under 30 min', value: '30' },
-  { label: 'Under 1 hour', value: '60' },
+  { label: '< 30 min', value: '30' },
+  { label: '< 1 hour', value: '60' },
   { label: 'Any', value: 'any' },
 ]
 
 const INGREDIENT_COUNTS = [
-  { label: '3 Items', value: '3' },
-  { label: '5 Items', value: '5' },
-  { label: '7 Items', value: '7' },
+  { label: '3', value: '3' },
+  { label: '5', value: '5' },
+  { label: '7', value: '7' },
 ]
 
-const SERVING_OPTIONS = ['1', '2', '4', '6']
+const SERVING_OPTIONS = [
+  { label: '1', value: '1' },
+  { label: '2', value: '2' },
+  { label: '4', value: '4' },
+  { label: '6', value: '6' },
+]
 
 const DIET_OPTIONS = [
   'Vegetarian',
@@ -138,86 +143,103 @@ export default function RecipeClient({
             Recipe Parameters
           </h2>
         </div>
-        <div className="px-6 py-5 flex flex-col gap-5">
-          {/* Dropdowns Row */}
-          <div className="grid grid-cols-3 gap-3">
-            {/* Cooking Time */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Cooking Time
-              </label>
-              <select
-                value={cookingTime}
-                onChange={(e) => setCookingTime(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-olive-500/30 focus:border-olive-400 transition-all appearance-none"
-              >
+        <div className="px-6 py-5 flex flex-col gap-4">
+          {/* Cooking Time */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Cooking Time
+            </label>
+            <div className="overflow-x-auto -mx-1 px-1">
+              <div className="flex gap-2">
                 {COOKING_TIMES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
+                  <button
+                    key={opt.value}
+                    onClick={() => setCookingTime(opt.value)}
+                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
+                      cookingTime === opt.value
+                        ? 'bg-olive-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
                     {opt.label}
-                  </option>
+                  </button>
                 ))}
-              </select>
-            </div>
-
-            {/* Ingredients Count */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Ingredients
-              </label>
-              <select
-                value={ingredientCount}
-                onChange={(e) => setIngredientCount(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-olive-500/30 focus:border-olive-400 transition-all appearance-none"
-              >
-                {INGREDIENT_COUNTS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Servings */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Servings
-              </label>
-              <select
-                value={servings}
-                onChange={(e) => setServings(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-olive-500/30 focus:border-olive-400 transition-all appearance-none"
-              >
-                {SERVING_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              </div>
             </div>
           </div>
 
-          {/* Diet Pills */}
+          {/* Ingredients Count */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Ingredients
+            </label>
+            <div className="overflow-x-auto -mx-1 px-1">
+              <div className="flex gap-2">
+                {INGREDIENT_COUNTS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setIngredientCount(opt.value)}
+                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
+                      ingredientCount === opt.value
+                        ? 'bg-olive-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Servings */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Servings
+            </label>
+            <div className="overflow-x-auto -mx-1 px-1">
+              <div className="flex gap-2">
+                {SERVING_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setServings(opt.value)}
+                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
+                      servings === opt.value
+                        ? 'bg-olive-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Diet */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Diet
             </label>
-            <div className="flex flex-wrap gap-2">
-              {DIET_OPTIONS.map((diet) => {
-                const isSelected = selectedDiets.includes(diet)
-                return (
-                  <button
-                    key={diet}
-                    onClick={() => toggleDiet(diet)}
-                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all active:scale-95 ${
-                      isSelected
-                        ? 'bg-olive-600 text-white border-olive-600'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-olive-300 hover:text-olive-700'
-                    }`}
-                  >
-                    {diet}
-                  </button>
-                )
-              })}
+            <div className="overflow-x-auto -mx-1 px-1">
+              <div className="flex gap-2">
+                {DIET_OPTIONS.map((diet) => {
+                  const isSelected = selectedDiets.includes(diet)
+                  return (
+                    <button
+                      key={diet}
+                      onClick={() => toggleDiet(diet)}
+                      className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
+                        isSelected
+                          ? 'bg-olive-600 text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {diet}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>
