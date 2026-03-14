@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import AddButton from './add-button'
+import FoodFactsTicker from './food-facts-ticker'
 import {
   Leaf,
   DollarSign,
@@ -133,6 +134,9 @@ export default async function DashboardPage() {
           </div>
           <AddButton />
         </div>
+
+        {/* Food Facts Ticker */}
+        <FoodFactsTicker />
 
         <Separator className="bg-slate-200" />
 
