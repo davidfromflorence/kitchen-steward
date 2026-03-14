@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Search, Plus, Trash2, Minus } from 'lucide-react'
 import { deleteItem, useItem } from '@/app/actions/inventory'
+import AddItemModal from './add-item-modal'
 
 interface InventoryItem {
   id: string
@@ -120,9 +122,18 @@ function expiryBadge(expiryDate: string) {
 }
 
 export default function FridgeClient({ items }: { items: InventoryItem[] }) {
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState('All')
   const [search, setSearch] = useState('')
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  // Auto-open modal if ?add=true is in the URL
+  useEffect(() => {
+    if (searchParams.get('add') === 'true') {
+      setShowAddModal(true)
+    }
+  }, [searchParams])
 
   const freshCount = items.filter((i) => {
     if (!i.expiry_date) return true
@@ -182,13 +193,13 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
           </div>
 
           {/* Add Item button */}
-          <a
-            href="/dashboard"
+          <button
+            onClick={() => setShowAddModal(true)}
             className="inline-flex items-center gap-2 bg-olive-600 hover:bg-olive-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
             Add Item
-          </a>
+          </button>
         </div>
       </div>
 
@@ -287,6 +298,11 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
           })}
         </div>
       )}
+
+      <AddItemModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+      />
     </div>
   )
 }
