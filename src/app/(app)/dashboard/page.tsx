@@ -181,10 +181,6 @@ export default async function DashboardPage() {
                       {fillPct}%
                     </span>
                   </div>
-                  <Progress
-                    value={fillPct}
-                    className="w-full [&_[data-slot=progress-track]]:h-1.5 [&_[data-slot=progress-indicator]]:bg-lime-600"
-                  />
                   <span className="text-xs text-slate-500 font-medium">
                     Fill Level
                   </span>
