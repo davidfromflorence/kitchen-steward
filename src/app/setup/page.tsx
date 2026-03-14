@@ -2,6 +2,9 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { createHousehold, joinHousehold } from './actions'
 import { Leaf, Home, Users } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardContent } from '@/components/ui/card'
 
 export default async function SetupPage({
   searchParams,
@@ -44,30 +47,34 @@ export default async function SetupPage({
 
       <div className="grid grid-cols-1 gap-6">
         {/* Create Household */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-olive-50 rounded-lg text-olive-600">
-              <Home className="w-5 h-5" />
+        <Card className="rounded-3xl border-slate-200 shadow-sm">
+          <CardHeader className="pb-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-olive-50 rounded-lg text-olive-600">
+                <Home className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-800">
+                Create New Fridge
+              </h2>
             </div>
-            <h2 className="text-lg font-bold text-slate-800">
-              Create New Fridge
-            </h2>
-          </div>
-          <form action={createHousehold} className="flex flex-col gap-4">
-            <label className="text-sm font-semibold text-slate-700">
-              Family/Household Name
-            </label>
-            <input
-              className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500"
-              name="name"
-              placeholder="e.g. Bottai Family"
-              required
-            />
-            <button className="bg-olive-600 text-white rounded-xl py-3 font-semibold hover:bg-olive-700 transition-all">
-              Create & Start
-            </button>
-          </form>
-        </div>
+          </CardHeader>
+          <CardContent>
+            <form action={createHousehold} className="flex flex-col gap-4">
+              <label className="text-sm font-semibold text-slate-700">
+                Family/Household Name
+              </label>
+              <Input
+                className="rounded-xl px-4 py-3 h-auto bg-slate-50 border-slate-200 focus-visible:ring-olive-500/50 focus-visible:border-olive-500"
+                name="name"
+                placeholder="e.g. Bottai Family"
+                required
+              />
+              <Button className="bg-olive-600 hover:bg-olive-700 text-white rounded-xl h-auto py-3 font-semibold transition-all">
+                Create & Start
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
@@ -79,36 +86,40 @@ export default async function SetupPage({
         </div>
 
         {/* Join Household */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-              <Users className="w-5 h-5" />
+        <Card className="rounded-3xl border-slate-200 shadow-sm">
+          <CardHeader className="pb-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                <Users className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-800">
+                Join Existing Fridge
+              </h2>
             </div>
-            <h2 className="text-lg font-bold text-slate-800">
-              Join Existing Fridge
-            </h2>
-          </div>
-          <form action={joinHousehold} className="flex flex-col gap-4">
-            <label className="text-sm font-semibold text-slate-700">
-              Invite Code
-            </label>
-            <input
-              className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase tracking-widest"
-              name="join_code"
-              placeholder="8-CHAR CODE"
-              required
-            />
-            <button className="bg-slate-900 text-white rounded-xl py-3 font-semibold hover:bg-slate-800 transition-all">
-              Join Household
-            </button>
-          </form>
-        </div>
+          </CardHeader>
+          <CardContent>
+            <form action={joinHousehold} className="flex flex-col gap-4">
+              <label className="text-sm font-semibold text-slate-700">
+                Invite Code
+              </label>
+              <Input
+                className="rounded-xl px-4 py-3 h-auto bg-slate-50 border-slate-200 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 uppercase tracking-widest"
+                name="join_code"
+                placeholder="8-CHAR CODE"
+                required
+              />
+              <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl h-auto py-3 font-semibold transition-all">
+                Join Household
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
 
       {error && (
-        <p className="mt-6 p-4 bg-red-50 text-red-600 text-center rounded-xl text-sm font-medium">
+        <div className="mt-6 p-4 bg-red-50 border border-red-200 text-red-600 text-center rounded-xl text-sm font-medium">
           {error}
-        </p>
+        </div>
       )}
     </div>
   )

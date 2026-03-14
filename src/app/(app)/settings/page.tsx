@@ -1,7 +1,28 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
-import { Settings, User, Home, ArrowRight, LogOut } from 'lucide-react'
+import { Settings, Home, ArrowRight, LogOut } from 'lucide-react'
 import { logout } from '@/app/login/actions'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+
+function getInitials(name: string | null, email: string | undefined): string {
+  if (name) {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
+  return (email?.[0] ?? '?').toUpperCase()
+}
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -35,6 +56,8 @@ export default async function SettingsPage() {
     .select('id', { count: 'exact', head: true })
     .eq('household_id', profile.household_id)
 
+  const initials = getInitials(profile.full_name, user.email)
+
   return (
     <div className="flex flex-col gap-6 animate-in py-8 max-w-2xl mx-auto px-6 pb-28">
       {/* Header */}
@@ -49,13 +72,22 @@ export default async function SettingsPage() {
       </div>
 
       {/* Profile Card */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-          <User className="w-5 h-5 text-olive-600" />
-          <h2 className="text-lg font-bold text-slate-800">Profile</h2>
-        </div>
-        <div className="px-6 py-5 space-y-4">
+      <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex-row items-center gap-3 px-6 py-5">
+          <Avatar size="lg" className="bg-olive-100">
+            <AvatarFallback className="bg-olive-100 text-olive-700 font-bold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
           <div>
+            <CardTitle className="text-lg font-bold text-slate-800">
+              {profile.full_name || 'Not set'}
+            </CardTitle>
+            <p className="text-sm text-slate-500">{user.email}</p>
+          </div>
+        </CardHeader>
+        <CardContent className="px-6 py-5 space-y-0">
+          <div className="py-3">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
               Name
             </span>
@@ -63,24 +95,27 @@ export default async function SettingsPage() {
               {profile.full_name || 'Not set'}
             </p>
           </div>
-          <div>
+          <Separator className="bg-slate-100" />
+          <div className="py-3">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
               Email
             </span>
             <p className="text-slate-800 font-medium mt-1">{user.email}</p>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Household Card */}
       {household && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+        <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
+          <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex-row items-center gap-2 px-6 py-5">
             <Home className="w-5 h-5 text-olive-600" />
-            <h2 className="text-lg font-bold text-slate-800">Household</h2>
-          </div>
-          <div className="px-6 py-5 space-y-4">
-            <div>
+            <CardTitle className="text-lg font-bold text-slate-800">
+              Household
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-6 py-5 space-y-0">
+            <div className="py-3">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Name
               </span>
@@ -88,7 +123,8 @@ export default async function SettingsPage() {
                 {household.name}
               </p>
             </div>
-            <div>
+            <Separator className="bg-slate-100" />
+            <div className="py-3">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Join Code
               </span>
@@ -96,7 +132,8 @@ export default async function SettingsPage() {
                 {household.join_code}
               </p>
             </div>
-            <div>
+            <Separator className="bg-slate-100" />
+            <div className="py-3">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Members
               </span>
@@ -104,31 +141,35 @@ export default async function SettingsPage() {
                 {memberCount ?? 0} member{memberCount !== 1 ? 's' : ''}
               </p>
             </div>
-            <a
-              href="/household"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-olive-600 hover:text-olive-700 transition-colors"
-            >
-              Manage household
-              <ArrowRight className="w-4 h-4" />
-            </a>
-          </div>
-        </div>
+            <Separator className="bg-slate-100" />
+            <div className="pt-3">
+              <Button
+                variant="link"
+                className="text-olive-600 hover:text-olive-700 p-0 h-auto font-semibold"
+                render={<a href="/household" />}
+              >
+                Manage household
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Actions */}
       <div className="flex flex-col gap-3">
         <form action={logout}>
-          <button
+          <Button
             type="submit"
-            className="w-full bg-white text-red-600 border border-red-200 rounded-2xl py-4 font-semibold hover:bg-red-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+            variant="destructive"
+            size="lg"
+            className="w-full rounded-2xl py-4 h-auto font-semibold text-base"
           >
             <LogOut className="w-5 h-5" />
             Sign Out
-          </button>
+          </Button>
         </form>
-
       </div>
-
     </div>
   )
 }

@@ -1,5 +1,8 @@
 import { login, signup } from './actions'
 import { Leaf } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 
 export default async function LoginPage({
   searchParams,
@@ -22,102 +25,112 @@ export default async function LoginPage({
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex bg-slate-100 rounded-2xl p-1 mb-6">
+      {/* Tabs (link-based for server rendering, styled like shadcn TabsList) */}
+      <div className="inline-flex w-full items-center justify-center rounded-lg bg-muted p-[3px] text-muted-foreground h-10 mb-6">
         <a
           href="/login"
-          className={`flex-1 py-2.5 rounded-xl font-semibold text-sm text-center transition-all ${
-            !isSignIn ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+          className={`inline-flex flex-1 items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-all ${
+            !isSignIn
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-foreground/60 hover:text-foreground'
           }`}
         >
           Create Account
         </a>
         <a
           href="/login?tab=signin"
-          className={`flex-1 py-2.5 rounded-xl font-semibold text-sm text-center transition-all ${
-            isSignIn ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+          className={`inline-flex flex-1 items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-all ${
+            isSignIn
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-foreground/60 hover:text-foreground'
           }`}
         >
           Sign In
         </a>
       </div>
 
-      {/* Sign Up */}
-      {!isSignIn && (
-        <form className="flex flex-col gap-3">
-          <label className="text-sm font-semibold text-slate-700">
-            Your Name
-          </label>
-          <input
-            className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500 transition-all"
-            name="full_name"
-            placeholder="e.g. David"
-            required
-          />
-          <label className="text-sm font-semibold text-slate-700 mt-2">
-            Email
-          </label>
-          <input
-            className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500 transition-all"
-            name="email"
-            type="email"
-            placeholder="you@example.com"
-            required
-          />
-          <label className="text-sm font-semibold text-slate-700 mt-2">
-            Password
-          </label>
-          <input
-            className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500 transition-all"
-            type="password"
-            name="password"
-            placeholder="At least 6 characters"
-            minLength={6}
-            required
-          />
-          <button
-            formAction={signup}
-            className="mt-4 bg-olive-600 rounded-xl px-4 py-3 text-white font-semibold hover:bg-olive-700 active:scale-95 transition-all"
-          >
-            Create Free Account
-          </button>
-        </form>
-      )}
+      <Card className="border-0 shadow-none bg-transparent ring-0">
+        <CardContent className="px-0">
+          {/* Sign Up */}
+          {!isSignIn && (
+            <form className="flex flex-col gap-3">
+              <label className="text-sm font-semibold text-slate-700">
+                Your Name
+              </label>
+              <Input
+                className="rounded-xl px-4 py-3 h-auto bg-slate-50 border-slate-200 focus-visible:ring-olive-500/50 focus-visible:border-olive-500"
+                name="full_name"
+                placeholder="e.g. David"
+                required
+              />
+              <label className="text-sm font-semibold text-slate-700 mt-2">
+                Email
+              </label>
+              <Input
+                className="rounded-xl px-4 py-3 h-auto bg-slate-50 border-slate-200 focus-visible:ring-olive-500/50 focus-visible:border-olive-500"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+              />
+              <label className="text-sm font-semibold text-slate-700 mt-2">
+                Password
+              </label>
+              <Input
+                className="rounded-xl px-4 py-3 h-auto bg-slate-50 border-slate-200 focus-visible:ring-olive-500/50 focus-visible:border-olive-500"
+                type="password"
+                name="password"
+                placeholder="At least 6 characters"
+                minLength={6}
+                required
+              />
+              <Button
+                formAction={signup}
+                className="mt-4 bg-olive-600 hover:bg-olive-700 text-white rounded-xl h-auto py-3 font-semibold active:scale-95 transition-all"
+              >
+                Create Free Account
+              </Button>
+            </form>
+          )}
 
-      {/* Sign In */}
-      {isSignIn && (
-        <form className="flex flex-col gap-3">
-          <label className="text-sm font-semibold text-slate-700">Email</label>
-          <input
-            className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500 transition-all"
-            name="email"
-            type="email"
-            placeholder="you@example.com"
-            required
-          />
-          <label className="text-sm font-semibold text-slate-700 mt-2">
-            Password
-          </label>
-          <input
-            className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500 transition-all"
-            type="password"
-            name="password"
-            placeholder="••••••••"
-            required
-          />
-          <button
-            formAction={login}
-            className="mt-4 bg-slate-900 rounded-xl px-4 py-3 text-white font-semibold hover:bg-slate-800 active:scale-95 transition-all"
-          >
-            Sign In
-          </button>
-        </form>
-      )}
+          {/* Sign In */}
+          {isSignIn && (
+            <form className="flex flex-col gap-3">
+              <label className="text-sm font-semibold text-slate-700">
+                Email
+              </label>
+              <Input
+                className="rounded-xl px-4 py-3 h-auto bg-slate-50 border-slate-200 focus-visible:ring-olive-500/50 focus-visible:border-olive-500"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+              />
+              <label className="text-sm font-semibold text-slate-700 mt-2">
+                Password
+              </label>
+              <Input
+                className="rounded-xl px-4 py-3 h-auto bg-slate-50 border-slate-200 focus-visible:ring-olive-500/50 focus-visible:border-olive-500"
+                type="password"
+                name="password"
+                placeholder="••••••••"
+                required
+              />
+              <Button
+                formAction={login}
+                className="mt-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl h-auto py-3 font-semibold active:scale-95 transition-all"
+              >
+                Sign In
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      </Card>
 
       {message && (
-        <p className="mt-4 p-4 bg-red-50 text-red-600 text-center rounded-xl text-sm font-medium">
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-600 text-center rounded-xl text-sm font-medium">
           {message}
-        </p>
+        </div>
       )}
     </div>
   )
