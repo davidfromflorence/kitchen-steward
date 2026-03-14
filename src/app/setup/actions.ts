@@ -29,7 +29,7 @@ export async function createHousehold(formData: FormData) {
 
   if (hError) {
     console.error('Error creating household:', hError)
-    return redirect('/setup?error=Failed to create household')
+    return redirect(`/setup?error=${encodeURIComponent('Household: ' + hError.message)}`)
   }
 
   // 2. Link the user to the household
@@ -40,7 +40,7 @@ export async function createHousehold(formData: FormData) {
 
   if (uError) {
     console.error('Error linking user to household:', uError)
-    return redirect('/setup?error=Failed to link user to household')
+    return redirect(`/setup?error=${encodeURIComponent('Link: ' + uError.message)}`)
   }
 
   revalidatePath('/dashboard')
