@@ -143,89 +143,110 @@ export default function RecipeClient({
             Recipe Parameters
           </h2>
         </div>
-        <div className="px-6 py-5 flex flex-col gap-5">
-          {/* Cooking Time */}
+        <div className="px-6 py-5 flex flex-col gap-6">
+          {/* Cooking Time — slider */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Cooking Time
-            </label>
-            <div className="flex rounded-xl bg-slate-100 p-1">
-              {COOKING_TIMES.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setCookingTime(opt.value)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                    cookingTime === opt.value
-                      ? 'bg-olive-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Cooking Time
+              </label>
+              <span className="text-sm font-semibold text-olive-700">
+                {COOKING_TIMES.find((o) => o.value === cookingTime)?.label}
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="range"
+                min={0}
+                max={COOKING_TIMES.length - 1}
+                value={COOKING_TIMES.findIndex((o) => o.value === cookingTime)}
+                onChange={(e) => setCookingTime(COOKING_TIMES[Number(e.target.value)].value)}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-olive-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-olive-600 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white"
+              />
+              <div className="flex justify-between mt-1.5">
+                {COOKING_TIMES.map((opt) => (
+                  <span key={opt.value} className="text-[10px] text-slate-400 font-medium">
+                    {opt.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Ingredients Count */}
+          {/* Ingredients — slider */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Ingredients
-            </label>
-            <div className="flex rounded-xl bg-slate-100 p-1">
-              {INGREDIENT_COUNTS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setIngredientCount(opt.value)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                    ingredientCount === opt.value
-                      ? 'bg-olive-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Ingredients
+              </label>
+              <span className="text-sm font-semibold text-olive-700">
+                {ingredientCount} items
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="range"
+                min={0}
+                max={INGREDIENT_COUNTS.length - 1}
+                value={INGREDIENT_COUNTS.findIndex((o) => o.value === ingredientCount)}
+                onChange={(e) => setIngredientCount(INGREDIENT_COUNTS[Number(e.target.value)].value)}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-olive-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-olive-600 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white"
+              />
+              <div className="flex justify-between mt-1.5">
+                {INGREDIENT_COUNTS.map((opt) => (
+                  <span key={opt.value} className="text-[10px] text-slate-400 font-medium">
+                    {opt.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Servings */}
+          {/* Servings — slider */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Servings
-            </label>
-            <div className="flex rounded-xl bg-slate-100 p-1">
-              {SERVING_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setServings(opt.value)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                    servings === opt.value
-                      ? 'bg-olive-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Servings
+              </label>
+              <span className="text-sm font-semibold text-olive-700">
+                {servings}
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="range"
+                min={0}
+                max={SERVING_OPTIONS.length - 1}
+                value={SERVING_OPTIONS.findIndex((o) => o.value === servings)}
+                onChange={(e) => setServings(SERVING_OPTIONS[Number(e.target.value)].value)}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-olive-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-olive-600 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white"
+              />
+              <div className="flex justify-between mt-1.5">
+                {SERVING_OPTIONS.map((opt) => (
+                  <span key={opt.value} className="text-[10px] text-slate-400 font-medium">
+                    {opt.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Diet */}
+          {/* Diet — toggle chips */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Diet
             </label>
-            <div className="flex rounded-xl bg-slate-100 p-1 overflow-x-auto scrollbar-hide">
+            <div className="flex flex-wrap gap-2">
               {DIET_OPTIONS.map((diet) => {
                 const isSelected = selectedDiets.includes(diet)
                 return (
                   <button
                     key={diet}
                     onClick={() => toggleDiet(diet)}
-                    className={`flex-shrink-0 flex-1 min-w-fit px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
                       isSelected
                         ? 'bg-olive-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-800'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
                     {diet}
