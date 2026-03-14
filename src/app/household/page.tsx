@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { Users, ArrowRight, Crown } from 'lucide-react'
 import CopyCodeButton from './copy-code-button'
+import NavBar from '@/app/components/nav-bar'
 
 export default async function HouseholdPage({
   searchParams,
@@ -45,7 +46,7 @@ export default async function HouseholdPage({
   const joinCode = code || household.join_code
 
   return (
-    <div className="flex-1 flex flex-col w-full px-8 sm:max-w-lg mx-auto py-8 gap-6 animate-in">
+    <div className="flex-1 flex flex-col w-full px-8 sm:max-w-lg mx-auto py-8 gap-6 animate-in pb-28">
       {/* Welcome Banner (only after creating) */}
       {isWelcome && (
         <div className="bg-olive-50 border border-olive-200 p-6 rounded-3xl text-center">
@@ -136,16 +137,18 @@ export default async function HouseholdPage({
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col gap-3">
+      {/* Action Button (welcome only) */}
+      {isWelcome && (
         <a
           href="/dashboard"
           className="w-full bg-olive-600 text-white rounded-2xl py-4 font-semibold shadow-lg hover:bg-olive-700 active:scale-95 transition-all flex items-center justify-center gap-2"
         >
-          {isWelcome ? 'Go to My Fridge' : 'Back to Dashboard'}
+          Go to My Fridge
           <ArrowRight className="w-5 h-5" />
         </a>
-      </div>
+      )}
+
+      <NavBar />
     </div>
   )
 }
