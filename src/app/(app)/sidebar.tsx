@@ -23,7 +23,7 @@ const mainNav = [
   { label: 'Shopping List', href: '/shopping-list', icon: ShoppingCart },
   { label: 'Analytics', href: '/analytics', icon: BarChart3 },
   { label: 'Recipes', href: '/recipes', icon: ChefHat },
-  { label: 'Badges', href: '/analytics#badges', icon: Award },
+  { label: 'Badges', href: '/badges', icon: Award },
 ]
 
 const bottomNav = [
