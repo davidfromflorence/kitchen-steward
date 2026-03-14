@@ -1,8 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import AddButton from './add-button'
 import {
-  Plus,
   Leaf,
   DollarSign,
   CloudOff,
@@ -111,13 +111,7 @@ export default async function DashboardPage() {
             Waste-Free Today
           </p>
         </div>
-        <Link
-          href="/fridge?add=true"
-          className="flex items-center gap-2 bg-olive-600 text-white px-5 py-2.5 rounded-full font-semibold shadow-lg hover:bg-olive-700 active:scale-95 transition-all text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add Item
-        </Link>
+        <AddButton />
       </div>
 
       {/* ── Row 1: Fridge Status + Expiring Soon ── */}
