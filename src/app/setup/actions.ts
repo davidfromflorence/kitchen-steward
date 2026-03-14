@@ -20,14 +20,14 @@ export async function createHousehold(formData: FormData) {
   } = await supabase.auth.getUser()
   if (!user) return redirect('/login')
 
-  // 1. Create the household
-  const { data: household, error: hError } = await supabase
-    .from('households')
-    .insert([{ name, join_code: joinCode }])
-    .select()
-    .single()
+  // 1. Generate ID upfront (avoids RLS read-back issue)
+  const householdId = crypto.randomUUID()
 
-  if (hError || !household) {
+  const { error: hError } = await supabase
+    .from('households')
+    .insert([{ id: householdId, name, join_code: joinCode }])
+
+  if (hError) {
     console.error('Error creating household:', hError)
     return redirect('/setup?error=Failed to create household')
   }
@@ -35,7 +35,7 @@ export async function createHousehold(formData: FormData) {
   // 2. Link the user to the household
   const { error: uError } = await supabase
     .from('users')
-    .update({ household_id: household.id })
+    .update({ household_id: householdId })
     .eq('id', user.id)
 
   if (uError) {
