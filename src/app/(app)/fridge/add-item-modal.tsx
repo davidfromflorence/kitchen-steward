@@ -183,9 +183,14 @@ export default function AddItemModal({
     if (selected.length === 0) return
 
     setIsAdding(true)
+    setError(null)
     try {
-      await addItems(selected)
-      handleClose()
+      const result = await addItems(selected)
+      if (result?.error) {
+        setError(result.error)
+      } else {
+        handleClose()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add items')
     } finally {
@@ -196,10 +201,15 @@ export default function AddItemModal({
   // ─── Manual form submit ───
   async function handleManualSubmit(formData: FormData) {
     setIsSubmitting(true)
+    setError(null)
     try {
-      await addItem(formData)
-      formRef.current?.reset()
-      handleClose()
+      const result = await addItem(formData)
+      if (result?.error) {
+        setError(result.error)
+      } else {
+        formRef.current?.reset()
+        handleClose()
+      }
     } catch {
       setError('Failed to add item')
     } finally {
