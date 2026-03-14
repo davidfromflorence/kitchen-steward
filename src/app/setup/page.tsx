@@ -1,0 +1,115 @@
+import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+import { createHousehold, joinHousehold } from './actions'
+import { Leaf, Home, Users } from 'lucide-react'
+
+export default async function SetupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return redirect('/login')
+  }
+
+  // Double check if user already has a household
+  const { data: profile } = await supabase
+    .from('users')
+    .select('household_id')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.household_id) {
+    return redirect('/dashboard')
+  }
+
+  const { error } = await searchParams
+
+  return (
+    <div className="flex-1 flex flex-col w-full px-8 sm:max-w-lg mx-auto justify-center gap-2 mt-16 animate-in">
+      <div className="flex flex-col items-center mb-8">
+        <div className="bg-olive-100 p-3 rounded-2xl mb-4">
+          <Leaf className="w-10 h-10 text-olive-600" />
+        </div>
+        <h1 className="text-3xl font-bold text-slate-900">Final Step!</h1>
+        <p className="text-slate-500 mt-2 text-center text-sm">
+          To manage your inventory, you need to join or create a Family Fridge.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        {/* Create Household */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-olive-50 rounded-lg text-olive-600">
+              <Home className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-800">
+              Create New Fridge
+            </h2>
+          </div>
+          <form action={createHousehold} className="flex flex-col gap-4">
+            <label className="text-sm font-semibold text-slate-700">
+              Family/Household Name
+            </label>
+            <input
+              className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500"
+              name="name"
+              placeholder="e.g. Bottai Family"
+              required
+            />
+            <button className="bg-olive-600 text-white rounded-xl py-3 font-semibold hover:bg-olive-700 transition-all">
+              Create & Start
+            </button>
+          </form>
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200"></div>
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-cream px-2 text-slate-400 font-bold">OR</span>
+          </div>
+        </div>
+
+        {/* Join Household */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+              <Users className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-800">
+              Join Existing Fridge
+            </h2>
+          </div>
+          <form action={joinHousehold} className="flex flex-col gap-4">
+            <label className="text-sm font-semibold text-slate-700">
+              Invite Code
+            </label>
+            <input
+              className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase tracking-widest"
+              name="join_code"
+              placeholder="8-CHAR CODE"
+              required
+            />
+            <button className="bg-slate-900 text-white rounded-xl py-3 font-semibold hover:bg-slate-800 transition-all">
+              Join Household
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {error && (
+        <p className="mt-6 p-4 bg-red-50 text-red-600 text-center rounded-xl text-sm font-medium">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
