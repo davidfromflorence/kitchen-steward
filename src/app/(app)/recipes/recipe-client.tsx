@@ -28,22 +28,36 @@ interface RecipeData {
 }
 
 const COOKING_TIMES = [
-  { label: '< 30 min', value: '30' },
-  { label: '< 1 hour', value: '60' },
+  { label: '10 min', value: '10' },
+  { label: '20 min', value: '20' },
+  { label: '30 min', value: '30' },
+  { label: '45 min', value: '45' },
+  { label: '1 hr', value: '60' },
+  { label: '1.5 hr', value: '90' },
+  { label: '2 hr', value: '120' },
   { label: 'Any', value: 'any' },
 ]
 
 const INGREDIENT_COUNTS = [
+  { label: '2', value: '2' },
   { label: '3', value: '3' },
+  { label: '4', value: '4' },
   { label: '5', value: '5' },
+  { label: '6', value: '6' },
   { label: '7', value: '7' },
+  { label: '8', value: '8' },
+  { label: '10', value: '10' },
 ]
 
 const SERVING_OPTIONS = [
   { label: '1', value: '1' },
   { label: '2', value: '2' },
+  { label: '3', value: '3' },
   { label: '4', value: '4' },
+  { label: '5', value: '5' },
   { label: '6', value: '6' },
+  { label: '8', value: '8' },
+  { label: '10', value: '10' },
 ]
 
 const DIET_OPTIONS = [
@@ -164,11 +178,9 @@ export default function RecipeClient({
                 className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-olive-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-olive-600 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white"
               />
               <div className="flex justify-between mt-1.5">
-                {COOKING_TIMES.map((opt) => (
-                  <span key={opt.value} className="text-[10px] text-slate-400 font-medium">
-                    {opt.label}
-                  </span>
-                ))}
+                <span className="text-[10px] text-slate-400 font-medium">{COOKING_TIMES[0].label}</span>
+                <span className="text-[10px] text-slate-400 font-medium">{COOKING_TIMES[Math.floor(COOKING_TIMES.length / 2)].label}</span>
+                <span className="text-[10px] text-slate-400 font-medium">{COOKING_TIMES[COOKING_TIMES.length - 1].label}</span>
               </div>
             </div>
           </div>
@@ -193,11 +205,9 @@ export default function RecipeClient({
                 className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-olive-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-olive-600 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white"
               />
               <div className="flex justify-between mt-1.5">
-                {INGREDIENT_COUNTS.map((opt) => (
-                  <span key={opt.value} className="text-[10px] text-slate-400 font-medium">
-                    {opt.label}
-                  </span>
-                ))}
+                <span className="text-[10px] text-slate-400 font-medium">{INGREDIENT_COUNTS[0].label}</span>
+                <span className="text-[10px] text-slate-400 font-medium">{INGREDIENT_COUNTS[Math.floor(INGREDIENT_COUNTS.length / 2)].label}</span>
+                <span className="text-[10px] text-slate-400 font-medium">{INGREDIENT_COUNTS[INGREDIENT_COUNTS.length - 1].label}</span>
               </div>
             </div>
           </div>
@@ -222,11 +232,9 @@ export default function RecipeClient({
                 className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-olive-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-olive-600 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white"
               />
               <div className="flex justify-between mt-1.5">
-                {SERVING_OPTIONS.map((opt) => (
-                  <span key={opt.value} className="text-[10px] text-slate-400 font-medium">
-                    {opt.label}
-                  </span>
-                ))}
+                <span className="text-[10px] text-slate-400 font-medium">{SERVING_OPTIONS[0].label}</span>
+                <span className="text-[10px] text-slate-400 font-medium">{SERVING_OPTIONS[Math.floor(SERVING_OPTIONS.length / 2)].label}</span>
+                <span className="text-[10px] text-slate-400 font-medium">{SERVING_OPTIONS[SERVING_OPTIONS.length - 1].label}</span>
               </div>
             </div>
           </div>
