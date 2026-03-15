@@ -3,16 +3,6 @@
 import { useActionState } from 'react'
 import { MessageCircle, Check } from 'lucide-react'
 import { updatePhoneNumber } from './actions'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 
 type State = { success?: boolean; error?: string } | null
 
@@ -30,20 +20,20 @@ export function WhatsAppLinkForm({
   const isLinked = !!phoneNumber
 
   return (
-    <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
-      <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex-row items-center gap-2 px-6 py-5">
+    <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="border-b border-slate-100 bg-slate-50/50 flex items-center gap-2 px-6 py-5">
         <MessageCircle className="w-5 h-5 text-green-600" />
-        <CardTitle className="text-lg font-bold text-slate-800">
+        <h2 className="text-lg font-bold text-slate-800">
           WhatsApp Integration
-        </CardTitle>
+        </h2>
         {isLinked && (
-          <Badge className="ml-auto bg-green-100 text-green-700 border-green-200">
+          <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold bg-green-100 text-green-700 border border-green-200 rounded-full px-2.5 py-0.5">
             <Check className="w-3 h-3" />
             Collegato
-          </Badge>
+          </span>
         )}
-      </CardHeader>
-      <CardContent className="px-6 py-5 space-y-4">
+      </div>
+      <div className="px-6 py-5 space-y-4">
         <p className="text-sm text-slate-500">
           Collega il tuo numero WhatsApp per aggiungere articoli al frigo
           tramite chat.
@@ -59,25 +49,25 @@ export function WhatsAppLinkForm({
         ) : null}
 
         <form action={formAction} className="flex gap-2">
-          <Input
+          <input
             type="tel"
             name="phone_number"
             placeholder="+39 333 123 4567"
             defaultValue={phoneNumber ?? ''}
-            className="flex-1 h-10 rounded-xl"
+            className="flex-1 h-10 rounded-xl px-4 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all text-sm"
             required
           />
-          <Button
+          <button
             type="submit"
             disabled={isPending}
-            className="rounded-xl bg-green-600 hover:bg-green-700 text-white h-10 px-4 font-semibold shrink-0"
+            className="rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white h-10 px-4 font-semibold shrink-0 text-sm active:scale-95 transition-all"
           >
             {isPending
               ? 'Salvataggio...'
               : isLinked
                 ? 'Aggiorna'
                 : 'Collega WhatsApp'}
-          </Button>
+          </button>
         </form>
 
         {state?.error && (
@@ -89,7 +79,7 @@ export function WhatsAppLinkForm({
           </p>
         )}
 
-        <Separator className="bg-slate-100" />
+        <hr className="border-slate-100" />
 
         <div>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
@@ -122,7 +112,7 @@ export function WhatsAppLinkForm({
             aggiornati con quelli definitivi.
           </p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
