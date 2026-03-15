@@ -33,6 +33,143 @@ function twiml(message: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Audio / Image handling
+// ---------------------------------------------------------------------------
+
+async function transcribeAudio(mediaUrl: string, mimeType: string): Promise<string | null> {
+  try {
+    // Download audio from Twilio (requires auth)
+    const accountSid = process.env.TWILIO_ACCOUNT_SID!
+    const authToken = process.env.TWILIO_AUTH_TOKEN!
+
+    const response = await fetch(mediaUrl, {
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+      },
+    })
+
+    if (!response.ok) {
+      console.error('Failed to download audio:', response.status)
+      return null
+    }
+
+    const audioBuffer = await response.arrayBuffer()
+    const base64Audio = Buffer.from(audioBuffer).toString('base64')
+
+    // Send to Gemini for transcription
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          {
+            inlineData: {
+              mimeType: mimeType.includes('ogg') ? 'audio/ogg' : mimeType,
+              data: base64Audio,
+            },
+          },
+          {
+            text: `Trascrivi questo messaggio vocale in italiano. Rispondi SOLO con la trascrizione esatta, nient'altro. Se non riesci a capire, rispondi con una stringa vuota.`,
+          },
+        ],
+      }],
+    })
+
+    const text = result.text?.trim()
+    if (!text || text.length < 2) return null
+
+    console.log('[voice transcription]', text)
+    return text
+  } catch (err) {
+    console.error('Audio transcription error:', err)
+    return null
+  }
+}
+
+async function handleImageMessage(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  householdId: string,
+  mediaUrl: string,
+  mimeType: string,
+  caption: string,
+) {
+  try {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID!
+    const authToken = process.env.TWILIO_AUTH_TOKEN!
+
+    const response = await fetch(mediaUrl, {
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+      },
+    })
+
+    if (!response.ok) {
+      return twiml('Non riesco a scaricare l\'immagine. Riprova.')
+    }
+
+    const imageBuffer = await response.arrayBuffer()
+    const base64Image = Buffer.from(imageBuffer).toString('base64')
+
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Image,
+            },
+          },
+          {
+            text: `Analizza questa foto. Se è uno scontrino o una lista della spesa, estrai i prodotti alimentari.
+${caption ? `Nota dell'utente: "${caption}"` : ''}
+
+Rispondi SOLO con un JSON array di oggetti:
+[{"name": "nome prodotto in italiano", "qty": numero, "unit": "pz|kg|g|litri|ml|scatole", "estimated_expiry_days": numero, "category": "Protein|Vegetable|Fruit|Dairy|Carbohydrate|Condiment|General"}]
+
+Se non è uno scontrino o non ci sono prodotti alimentari, rispondi con: []
+Solo JSON valido, no markdown.`,
+          },
+        ],
+      }],
+    })
+
+    const raw = result.text?.replace(/```json\n?|\n?```/g, '').trim() || '[]'
+    const parsed = JSON.parse(raw)
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return twiml('📷 Non ho trovato prodotti alimentari in questa immagine. Prova con una foto di uno scontrino!')
+    }
+
+    // Insert into inventory
+    const rows = parsed.map((item: { name: string; qty: number; unit: string; estimated_expiry_days?: number; category?: string }) => ({
+      household_id: householdId,
+      name: item.name,
+      quantity: item.qty || 1,
+      unit: item.unit || 'pz',
+      category: item.category || 'General',
+      expiry_date: item.estimated_expiry_days
+        ? new Date(Date.now() + item.estimated_expiry_days * 86_400_000).toISOString().split('T')[0]
+        : null,
+    }))
+
+    const { error } = await supabase.from('inventory_items').insert(rows)
+
+    if (error) {
+      console.error('Insert error:', error)
+      return twiml('Non sono riuscito a salvare i prodotti. Riprova.')
+    }
+
+    return twiml(`📷 Ho riconosciuto dallo scontrino:\n${formatAddedItems(parsed)}`)
+  } catch (err) {
+    console.error('Image processing error:', err)
+    return twiml('Non sono riuscito ad analizzare l\'immagine. Riprova!')
+  }
+}
+
+// ---------------------------------------------------------------------------
 // AI Intent Detection
 // ---------------------------------------------------------------------------
 
@@ -132,8 +269,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
-    const body = (formData.get('Body') as string | null)?.trim() ?? ''
+    let body = (formData.get('Body') as string | null)?.trim() ?? ''
     const from = (formData.get('From') as string | null) ?? ''
+    const numMedia = parseInt((formData.get('NumMedia') as string) || '0', 10)
 
     const phoneNumber = parseWhatsAppNumber(from)
     const supabase = getSupabaseAdmin()
@@ -156,6 +294,24 @@ export async function POST(request: Request) {
       return twiml(
         'Il tuo account non è collegato a nessun nucleo familiare. Completa la configurazione su Kitchen Steward.'
       )
+    }
+
+    // Handle voice memos and audio
+    if (numMedia > 0) {
+      const mediaType = (formData.get('MediaContentType0') as string) || ''
+      const mediaUrl = formData.get('MediaUrl0') as string | null
+
+      if (mediaType.startsWith('audio/') && mediaUrl) {
+        const transcribed = await transcribeAudio(mediaUrl, mediaType)
+        if (transcribed) {
+          body = transcribed
+        } else {
+          return twiml('🎤 Non sono riuscito a capire il messaggio vocale. Puoi riprovare o scriverlo?')
+        }
+      } else if (mediaType.startsWith('image/') && mediaUrl) {
+        // Image support (e.g. receipt photo) — treat as add items
+        return await handleImageMessage(supabase, householdId, mediaUrl, mediaType, body)
+      }
     }
 
     // Detect intent via AI
