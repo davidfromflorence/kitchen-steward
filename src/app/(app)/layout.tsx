@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import Sidebar from './sidebar'
+import ClientProviders from './client-providers'
 
 export default async function AppLayout({
   children,
@@ -30,13 +31,13 @@ export default async function AppLayout({
   const userName = profile.full_name || user.email?.split('@')[0] || 'User'
 
   return (
-    <div className="min-h-screen bg-cream">
-      <Sidebar userName={userName} userRole="Household Head" />
-
-      {/* Main Content */}
-      <main className="md:ml-64 min-h-screen pb-20 md:pb-0">
-        {children}
-      </main>
-    </div>
+    <ClientProviders>
+      <div className="min-h-screen bg-cream">
+        <Sidebar userName={userName} userRole="Household Head" />
+        <main className="md:ml-64 min-h-screen pb-20 md:pb-0">
+          {children}
+        </main>
+      </div>
+    </ClientProviders>
   )
 }

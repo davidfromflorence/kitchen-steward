@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import { useGamification } from '@/app/(app)/gamification-context'
 import {
   X,
   Mic,
@@ -53,6 +54,7 @@ export default function AddItemModal({
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const { awardXP } = useGamification()
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -189,6 +191,7 @@ export default function AddItemModal({
       if (result?.error) {
         setError(result.error)
       } else {
+        selected.forEach(() => awardXP('item_added', 5))
         handleClose()
       }
     } catch (err) {
@@ -207,6 +210,7 @@ export default function AddItemModal({
       if (result?.error) {
         setError(result.error)
       } else {
+        awardXP('item_added', 5)
         formRef.current?.reset()
         handleClose()
       }

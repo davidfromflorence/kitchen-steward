@@ -1,0 +1,230 @@
+'use client'
+
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+
+/* ── Types ────────────────────────────────────────────── */
+
+interface GamificationState {
+  totalXP: number
+  streak: number
+  lastLoginDate: string
+  completedActions: string[]
+}
+
+interface GamificationContextValue {
+  totalXP: number
+  streak: number
+  lastLoginDate: string
+  completedActions: string[]
+  level: number
+  xpToNextLevel: number
+  progressPercent: number
+  awardXP: (event: string, xp: number, dedupeKey?: string) => boolean
+  hasCompleted: (dedupeKey: string) => boolean
+}
+
+/* ── Constants ────────────────────────────────────────── */
+
+const STORAGE_KEY = 'ks-gamification'
+const XP_PER_LEVEL = 100
+
+const defaultState: GamificationState = {
+  totalXP: 0,
+  streak: 0,
+  lastLoginDate: '',
+  completedActions: [],
+}
+
+/* ── Helpers ──────────────────────────────────────────── */
+
+function todayString(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function loadState(): GamificationState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      return {
+        totalXP: parsed.totalXP ?? 0,
+        streak: parsed.streak ?? 0,
+        lastLoginDate: parsed.lastLoginDate ?? '',
+        completedActions: Array.isArray(parsed.completedActions) ? parsed.completedActions : [],
+      }
+    }
+  } catch {
+    // corrupted data — start fresh
+  }
+  return { ...defaultState }
+}
+
+function saveState(state: GamificationState): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+}
+
+/** One-time migration from old localStorage keys */
+function migrateOldData(state: GamificationState): GamificationState {
+  let migrated = false
+  const next = { ...state, completedActions: [...state.completedActions] }
+
+  try {
+    const oldScore = localStorage.getItem('ks-knowledge-score')
+    const oldFacts = localStorage.getItem('ks-read-facts')
+    const oldCards = localStorage.getItem('ks-read-cards')
+
+    if (oldScore) {
+      next.totalXP += parseInt(oldScore, 10) || 0
+      migrated = true
+    }
+
+    if (oldFacts) {
+      const ids: number[] = JSON.parse(oldFacts)
+      for (const id of ids) {
+        const key = `fact_read:${id}`
+        if (!next.completedActions.includes(key)) {
+          next.completedActions.push(key)
+        }
+      }
+      migrated = true
+    }
+
+    if (oldCards) {
+      const ids: number[] = JSON.parse(oldCards)
+      for (const id of ids) {
+        const key = `card_read:${id}`
+        if (!next.completedActions.includes(key)) {
+          next.completedActions.push(key)
+        }
+      }
+      migrated = true
+    }
+
+    if (migrated) {
+      localStorage.removeItem('ks-knowledge-score')
+      localStorage.removeItem('ks-read-facts')
+      localStorage.removeItem('ks-read-cards')
+    }
+  } catch {
+    // migration failed — not critical
+  }
+
+  return migrated ? next : state
+}
+
+/** Check daily login and update streak */
+function processDailyLogin(state: GamificationState): GamificationState {
+  const today = todayString()
+  if (state.lastLoginDate === today) return state
+
+  const next = { ...state, completedActions: [...state.completedActions] }
+  next.lastLoginDate = today
+
+  // Calculate streak
+  if (state.lastLoginDate) {
+    const lastDate = new Date(state.lastLoginDate + 'T00:00:00')
+    const todayDate = new Date(today + 'T00:00:00')
+    const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 1) {
+      next.streak = state.streak + 1
+    } else if (diffDays > 1) {
+      next.streak = 1
+    }
+  } else {
+    next.streak = 1
+  }
+
+  // Award daily login XP
+  const loginKey = `daily_login:${today}`
+  if (!next.completedActions.includes(loginKey)) {
+    next.completedActions.push(loginKey)
+    next.totalXP += 10
+  }
+
+  return next
+}
+
+/* ── Context ──────────────────────────────────────────── */
+
+const GamificationContext = createContext<GamificationContextValue | null>(null)
+
+export function GamificationProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<GamificationState>(defaultState)
+  const [mounted, setMounted] = useState(false)
+
+  // Initialize on mount
+  useEffect(() => {
+    let current = loadState()
+    current = migrateOldData(current)
+    current = processDailyLogin(current)
+    saveState(current)
+    setState(current)
+    setMounted(true)
+  }, [])
+
+  const awardXP = useCallback(
+    (event: string, xp: number, dedupeKey?: string): boolean => {
+      let awarded = false
+
+      setState((prev) => {
+        if (dedupeKey && prev.completedActions.includes(dedupeKey)) {
+          return prev
+        }
+
+        const next: GamificationState = {
+          ...prev,
+          totalXP: prev.totalXP + xp,
+          completedActions: dedupeKey
+            ? [...prev.completedActions, dedupeKey]
+            : prev.completedActions,
+        }
+        saveState(next)
+        awarded = true
+        return next
+      })
+
+      return awarded
+    },
+    [],
+  )
+
+  const hasCompleted = useCallback(
+    (dedupeKey: string): boolean => {
+      return state.completedActions.includes(dedupeKey)
+    },
+    [state.completedActions],
+  )
+
+  // Compute derived values — return zeros until mounted to avoid hydration mismatch
+  const totalXP = mounted ? state.totalXP : 0
+  const level = Math.floor(totalXP / XP_PER_LEVEL) + 1
+  const xpToNextLevel = XP_PER_LEVEL - (totalXP % XP_PER_LEVEL)
+  const progressPercent = totalXP % XP_PER_LEVEL
+
+  const value: GamificationContextValue = {
+    totalXP,
+    streak: mounted ? state.streak : 0,
+    lastLoginDate: mounted ? state.lastLoginDate : '',
+    completedActions: mounted ? state.completedActions : [],
+    level,
+    xpToNextLevel,
+    progressPercent,
+    awardXP,
+    hasCompleted,
+  }
+
+  return (
+    <GamificationContext.Provider value={value}>
+      {children}
+    </GamificationContext.Provider>
+  )
+}
+
+export function useGamification(): GamificationContextValue {
+  const ctx = useContext(GamificationContext)
+  if (!ctx) {
+    throw new Error('useGamification must be used within a GamificationProvider')
+  }
+  return ctx
+}

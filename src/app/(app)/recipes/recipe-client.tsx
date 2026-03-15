@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useGamification } from '@/app/(app)/gamification-context'
 import {
   ChefHat,
   Clock,
@@ -74,6 +75,7 @@ export default function RecipeClient({
 }: {
   ingredients: Ingredient[]
 }) {
+  const { awardXP } = useGamification()
   const [cookingTime, setCookingTime] = useState('30')
   const [ingredientCount, setIngredientCount] = useState('5')
   const [servings, setServings] = useState('2')
@@ -140,6 +142,7 @@ export default function RecipeClient({
           servings: parseInt(servings),
           eco_impact_kg: generated.eco_impact_kg || 0.8,
         })
+        awardXP('recipe_generated', 15)
       }
     } catch {
       setError('Something went wrong. Please try again.')

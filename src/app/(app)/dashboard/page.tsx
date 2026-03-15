@@ -2,7 +2,8 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import AddButton from './add-button'
-import FoodFactsTicker from './food-facts-ticker'
+import XPBar from './xp-bar'
+import DailyChallenge from './daily-challenge'
 import {
   Leaf,
   DollarSign,
@@ -135,10 +136,11 @@ export default async function DashboardPage() {
           <AddButton />
         </div>
 
-        {/* Food Facts Ticker */}
-        <FoodFactsTicker />
+        {/* XP Bar */}
+        <XPBar />
 
-        <Separator className="bg-slate-200" />
+        {/* Daily Challenge */}
+        <DailyChallenge />
 
         {/* -- Row 1: Fridge Status + Expiring Soon -- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

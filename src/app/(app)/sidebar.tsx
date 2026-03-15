@@ -8,9 +8,10 @@ import {
   ShoppingCart,
   BarChart3,
   ChefHat,
-  Award,
+  BookOpen,
   Settings,
 } from 'lucide-react'
+import { useGamification } from './gamification-context'
 
 interface SidebarProps {
   userName?: string
@@ -23,7 +24,7 @@ const mainNav = [
   { label: 'Shopping List', href: '/shopping-list', icon: ShoppingCart },
   { label: 'Analytics', href: '/analytics', icon: BarChart3 },
   { label: 'Recipes', href: '/recipes', icon: ChefHat },
-  { label: 'Badges', href: '/badges', icon: Award },
+  { label: 'Learn', href: '/learn', icon: BookOpen },
 ]
 
 const bottomNav = [
@@ -44,6 +45,7 @@ function isActive(pathname: string, href: string): boolean {
 export default function Sidebar({ userName = 'User', userRole = 'Household Head' }: SidebarProps) {
   const pathname = usePathname()
   const initials = userName.charAt(0).toUpperCase()
+  const { level, progressPercent, streak } = useGamification()
 
   return (
     <>
@@ -98,6 +100,20 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
             Settings
           </Link>
         </nav>
+
+        {/* XP Progress */}
+        <div className="px-4 py-3 border-t border-slate-200">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold text-olive-700">Lv. {level}</span>
+            <span className="text-[10px] text-slate-400">{streak > 0 ? `🔥 ${streak}d` : ''}</span>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-olive-500 rounded-full transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
 
         {/* User Profile */}
         <div className="border-t border-slate-200 px-4 py-4">
