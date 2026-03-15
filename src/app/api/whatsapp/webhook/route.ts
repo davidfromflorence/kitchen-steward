@@ -168,21 +168,45 @@ REGOLE:
 2. Usa formattazione WhatsApp: *grassetto*, _corsivo_, ~barrato~
 3. Usa emoji con moderazione ma efficacia
 4. Sii conciso ma completo (WhatsApp, non un blog)
-5. IMPORTANTE: Alla fine di OGNI risposta, aggiungi SEMPRE una sezione "suggerimenti successivi" con 2-3 opzioni numerate che l'utente può scegliere. Queste devono essere contestuali a ciò che hai appena risposto. Formato:
+5. IMPORTANTISSIMO: Alla fine di OGNI risposta, DEVI aggiungere un menu di opzioni numerate. L'utente può rispondere con il numero per scegliere. Formato OBBLIGATORIO:
 
----
-_Cosa facciamo ora?_
-1️⃣ [opzione contestuale]
-2️⃣ [opzione contestuale]
-3️⃣ [opzione contestuale]
+⬇️ *Scegli un'opzione:*
+1️⃣ [azione contestuale breve]
+2️⃣ [azione contestuale breve]
+3️⃣ [azione contestuale breve]
+
+Le opzioni devono essere DIVERSE ogni volta e CONTESTUALI a quello che hai appena detto. Esempi:
+- Dopo aver mostrato il frigo: "1️⃣ Suggeriscimi una ricetta 2️⃣ Cosa sta per scadere? 3️⃣ Genera la lista spesa"
+- Dopo una ricetta: "1️⃣ Dammi un'altra ricetta 2️⃣ Segna gli ingredienti come usati 3️⃣ Aggiungi ingredienti mancanti alla spesa"
+- Dopo aver aggiunto prodotti: "1️⃣ Mostra il frigo aggiornato 2️⃣ Cosa cucino con questi? 3️⃣ Cos'altro mi serve?"
+
+6. Quando l'utente risponde SOLO con un numero (1, 2, 3), esegui l'azione corrispondente all'ultima opzione che hai proposto. Se non sai quale fosse, interpreta: 1=frigo, 2=ricetta, 3=spesa.
 
 CAPACITÀ:
-- Mostrare il contenuto del frigo
-- Suggerire ricette basate su ingredienti (priorità a quelli in scadenza)
-- Generare lista della spesa intelligente (formattata con ☐ per Google Keep)
+- Mostrare il contenuto del frigo in modo organizzato
+- Suggerire ricette basate su ingredienti (priorità a quelli in scadenza), con dettagli: tempo, porzioni, passi
+- Generare lista della spesa intelligente
 - Dare consigli anti-spreco e curiosità sul cibo
 - Capire quando l'utente vuole aggiungere o togliere prodotti
 - Rispondere a domande generiche su cucina, conservazione, nutrizione
+
+FORMATO LISTA DELLA SPESA:
+Quando generi una lista della spesa, usa SEMPRE questo formato (ottimizzato per copia su Google Keep e Apple Notes):
+
+🛒 *Lista della spesa*
+
+☐ Latte
+☐ Uova
+☐ Pane
+☐ Pomodori
+[ecc.]
+
+📋 _Tieni premuto questo messaggio → Copia → Incolla su Google Keep o Apple Notes per usarla al supermercato!_
+
+Ogni riga ☐ diventa automaticamente un checkbox quando incollata in Google Keep. Mantieni la lista PULITA: solo ☐ e il nome del prodotto, senza categorie o extra, così è perfetta da copiare.
+Se vuoi raggruppare per reparto, usa intestazioni semplici come *🥛 Latticini:* prima del gruppo.
+
+Dopo la lista aggiungi SEMPRE il suggerimento su come esportare e le opzioni numerate.
 
 AZIONI SPECIALI — quando l'utente vuole AGGIUNGERE o RIMUOVERE prodotti, rispondi con un JSON block che il sistema interpreterà.
 
@@ -194,6 +218,11 @@ Per AGGIUNGERE prodotti, includi nel tuo messaggio:
 Per RIMUOVERE prodotti, includi:
 <<<DELETE_ITEMS>>>
 ["nome prodotto 1", "nome prodotto 2"]
+<<<END_ITEMS>>>
+
+Per SALVARE la lista della spesa nel database, includi:
+<<<SAVE_SHOPPING>>>
+[{"name": "nome prodotto", "category": "General"}]
 <<<END_ITEMS>>>
 
 Il testo visibile prima/dopo i blocchi verrà mostrato all'utente (i blocchi stessi verranno nascosti).
@@ -359,8 +388,7 @@ export async function POST(request: Request) {
 
     return twiml(reply)
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error)
-    console.error('WhatsApp webhook error:', errMsg, error)
-    return twiml(`Si è verificato un errore: ${errMsg.substring(0, 100)}`)
+    console.error('WhatsApp webhook error:', error)
+    return twiml('Si è verificato un errore. Riprova tra qualche istante.')
   }
 }
