@@ -37,6 +37,7 @@ function twiml(message: string) {
 // ---------------------------------------------------------------------------
 
 type Intent =
+  | { action: 'greeting' }
   | { action: 'show_fridge' }
   | { action: 'show_expiring' }
   | { action: 'suggest_recipe'; modifiers: string }
@@ -50,6 +51,14 @@ type Intent =
 async function detectIntent(message: string): Promise<Intent> {
   // Fast exact matches first (no AI call needed)
   const lower = message.toLowerCase().trim()
+  const greetings = ['ciao', 'hey', 'hi', 'hello', 'buongiorno', 'buonasera', 'salve', 'hola', 'ehi', 'yo']
+  if (greetings.includes(lower)) return { action: 'greeting' }
+  // Numbered quick replies from greeting menu
+  if (lower === '1') return { action: 'show_fridge' }
+  if (lower === '2') return { action: 'suggest_recipe', modifiers: 'ricetta' }
+  if (lower === '3') return { action: 'generate_shopping_list' }
+  if (lower === '4') return { action: 'show_expiring' }
+  if (lower === '5') return { action: 'food_fact' }
   if (lower === 'aiuto' || lower === 'help') return { action: 'help' }
   if (lower === 'lista' || lower === 'frigo') return { action: 'show_fridge' }
   if (lower === 'scadenze') return { action: 'show_expiring' }
@@ -62,6 +71,7 @@ async function detectIntent(message: string): Promise<Intent> {
   const prompt = `You are an intent classifier for a kitchen/fridge WhatsApp bot. Classify the user's message into ONE intent.
 
 Possible intents:
+- greeting: user is saying hello or starting a conversation (e.g. "ciao!", "hey", "buongiorno", "come va?", "eccomi")
 - show_fridge: user wants to see what's in the fridge (e.g. "cosa c'è nel frigo?", "che abbiamo?", "fammi vedere il frigo", "what's in the fridge")
 - show_expiring: user asks about expiring items (e.g. "cosa scade?", "scadenze", "cosa sta per scadere?")
 - suggest_recipe: user wants a recipe suggestion (e.g. "cosa cucino stasera?", "suggeriscimi una ricetta", "what should I cook?", "ho fame")
@@ -90,6 +100,7 @@ Return ONLY JSON, no markdown.`
     const parsed = JSON.parse(raw)
 
     switch (parsed.action) {
+      case 'greeting': return { action: 'greeting' }
       case 'show_fridge': return { action: 'show_fridge' }
       case 'show_expiring': return { action: 'show_expiring' }
       case 'suggest_recipe': return { action: 'suggest_recipe', modifiers: parsed.modifiers || message }
@@ -151,6 +162,8 @@ export async function POST(request: Request) {
     const intent = await detectIntent(body)
 
     switch (intent.action) {
+      case 'greeting':
+        return await handleGreeting(supabase, householdId, user.id)
       case 'help':
         return twiml(HELP_TEXT)
       case 'show_fridge':
@@ -197,6 +210,56 @@ La spesa generata è formattata per copiarla su Google Keep! 📋`
 // ---------------------------------------------------------------------------
 // Command handlers
 // ---------------------------------------------------------------------------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleGreeting(supabase: any, householdId: string, userId: string) {
+  // Get user name
+  const { data: profile } = await supabase
+    .from('users')
+    .select('full_name')
+    .eq('id', userId)
+    .single()
+
+  const firstName = profile?.full_name?.split(' ')[0] || 'Ciao'
+
+  // Get a quick fridge summary
+  const { data: items } = await supabase
+    .from('inventory_items')
+    .select('name, expiry_date')
+    .eq('household_id', householdId)
+
+  const total = items?.length || 0
+
+  const expiringSoon = (items || []).filter((i: { expiry_date: string | null }) => {
+    if (!i.expiry_date) return false
+    const days = Math.ceil((new Date(i.expiry_date).getTime() - Date.now()) / 86_400_000)
+    return days >= 0 && days <= 2
+  }).length
+
+  let statusLine = ''
+  if (total === 0) {
+    statusLine = '📦 Il frigo è vuoto — aggiungimi cosa hai comprato!'
+  } else {
+    statusLine = `🧊 Hai *${total} prodotti* nel frigo`
+    if (expiringSoon > 0) {
+      statusLine += ` — ⚠️ *${expiringSoon}* in scadenza!`
+    }
+  }
+
+  return twiml(`👋 Ciao *${firstName}*!
+
+${statusLine}
+
+Cosa vuoi fare?
+
+1️⃣ *Frigo* — Vedi cosa c'è
+2️⃣ *Ricetta* — Cosa cucino?
+3️⃣ *Spesa* — Genera lista della spesa
+4️⃣ *Scadenze* — Cosa scade presto?
+5️⃣ *Curiosità* — Fatto curioso sul cibo
+
+Oppure scrivimi cosa hai comprato e lo aggiungo! 🛒`)
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleInventoryList(supabase: any, householdId: string) {
