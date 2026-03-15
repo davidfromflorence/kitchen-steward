@@ -4,7 +4,6 @@ import { GoogleGenAI } from '@google/genai'
 import {
   parseWhatsAppNumber,
   buildTwiMLResponse,
-  formatAddedItems,
 } from '@/lib/whatsapp'
 
 // ---------------------------------------------------------------------------
@@ -21,14 +20,18 @@ function getSupabaseAdmin() {
 }
 
 function twiml(message: string) {
-  return new Response(buildTwiMLResponse(message), {
+  // WhatsApp has a ~1600 char limit per message
+  const truncated = message.length > 1500
+    ? message.substring(0, 1480) + '\n\n_(messaggio troppo lungo, troncato)_'
+    : message
+  return new Response(buildTwiMLResponse(truncated), {
     status: 200,
     headers: { 'Content-Type': 'text/xml' },
   })
 }
 
 // ---------------------------------------------------------------------------
-// Media handling
+// Twilio helpers
 // ---------------------------------------------------------------------------
 
 function twilioAuth() {
@@ -36,6 +39,25 @@ function twilioAuth() {
   const token = process.env.TWILIO_AUTH_TOKEN!
   return 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
 }
+
+async function sendWhatsApp(phoneNumber: string, message: string) {
+  const sid = process.env.TWILIO_ACCOUNT_SID!
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`
+  const params = new URLSearchParams({
+    From: process.env.TWILIO_WHATSAPP_NUMBER!,
+    To: `whatsapp:${phoneNumber}`,
+    Body: message,
+  })
+  await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: twilioAuth(), 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Media handling
+// ---------------------------------------------------------------------------
 
 async function transcribeAudio(mediaUrl: string, mimeType: string): Promise<string | null> {
   try {
@@ -48,21 +70,19 @@ async function transcribeAudio(mediaUrl: string, mimeType: string): Promise<stri
         role: 'user',
         parts: [
           { inlineData: { mimeType: mimeType.includes('ogg') ? 'audio/ogg' : mimeType, data: Buffer.from(buf).toString('base64') } },
-          { text: `Trascrivi questo messaggio vocale in italiano. Rispondi SOLO con la trascrizione, nient'altro.` },
+          { text: `Trascrivi questo messaggio vocale in italiano. Rispondi SOLO con la trascrizione.` },
         ],
       }],
     })
     const text = result.text?.trim()
-    if (!text || text.length < 2) return null
-    console.log('[voice]', text)
-    return text
+    return text && text.length >= 2 ? text : null
   } catch (err) {
     console.error('Audio error:', err)
     return null
   }
 }
 
-async function extractFromImage(mediaUrl: string, mimeType: string, caption: string): Promise<string | null> {
+async function describeImage(mediaUrl: string, mimeType: string, caption: string): Promise<string | null> {
   try {
     const res = await fetch(mediaUrl, { headers: { Authorization: twilioAuth() } })
     if (!res.ok) return null
@@ -84,161 +104,212 @@ async function extractFromImage(mediaUrl: string, mimeType: string, caption: str
 }
 
 // ---------------------------------------------------------------------------
-// Fridge context loader
+// Context loader
 // ---------------------------------------------------------------------------
 
 interface FridgeContext {
   userName: string
   inventory: Array<{ name: string; quantity: number; unit: string; category: string; expiry_date: string | null }>
-  shoppingList: Array<{ name: string; checked: boolean }>
-  expiringSoon: number
-  expired: number
+  shoppingList: Array<{ name: string }>
+  conversationHistory: Array<{ role: string; content: string }>
+  householdMembers: Array<{ full_name: string }>
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function loadFridgeContext(supabase: any, householdId: string, userId: string): Promise<FridgeContext> {
-  const [profileRes, inventoryRes, shoppingRes] = await Promise.all([
+async function loadContext(supabase: any, householdId: string, userId: string): Promise<FridgeContext> {
+  const [profileRes, inventoryRes, shoppingRes, historyRes, membersRes] = await Promise.all([
     supabase.from('users').select('full_name').eq('id', userId).single(),
     supabase.from('inventory_items').select('name, quantity, unit, category, expiry_date').eq('household_id', householdId).order('expiry_date', { ascending: true, nullsFirst: false }),
-    supabase.from('shopping_list_items').select('name, checked').eq('household_id', householdId).eq('checked', false),
+    supabase.from('shopping_list_items').select('name').eq('household_id', householdId).eq('checked', false),
+    supabase.from('wa_messages').select('role, content').eq('household_id', householdId).order('created_at', { ascending: false }).limit(10),
+    supabase.from('users').select('full_name').eq('household_id', householdId),
   ])
-
-  const inventory = inventoryRes.data || []
-  const now = Date.now()
-
-  let expiringSoon = 0
-  let expired = 0
-  for (const item of inventory) {
-    if (!item.expiry_date) continue
-    const days = Math.ceil((new Date(item.expiry_date).getTime() - now) / 86_400_000)
-    if (days < 0) expired++
-    else if (days <= 3) expiringSoon++
-  }
 
   return {
     userName: profileRes.data?.full_name?.split(' ')[0] || 'amico',
-    inventory,
+    inventory: inventoryRes.data || [],
     shoppingList: shoppingRes.data || [],
-    expiringSoon,
-    expired,
+    conversationHistory: (historyRes.data || []).reverse(),
+    householdMembers: membersRes.data || [],
   }
 }
 
 function buildFridgeSnapshot(ctx: FridgeContext): string {
+  const now = Date.now()
+
   if (ctx.inventory.length === 0) return 'Il frigo è VUOTO.'
 
-  const now = Date.now()
   const lines = ctx.inventory.map((i) => {
     let exp = ''
     if (i.expiry_date) {
       const days = Math.ceil((new Date(i.expiry_date).getTime() - now) / 86_400_000)
-      exp = days < 0 ? ' [SCADUTO]' : days <= 3 ? ` [scade tra ${days}g]` : ` [${days}g]`
+      exp = days < 0 ? ' [SCADUTO]' : days <= 3 ? ` [scade tra ${days}g!]` : ` [${days}g]`
     }
     return `- ${i.quantity} ${i.unit} ${i.name} (${i.category})${exp}`
   })
 
   let snapshot = `Frigo (${ctx.inventory.length} prodotti):\n${lines.join('\n')}`
+
   if (ctx.shoppingList.length > 0) {
-    snapshot += `\n\nLista spesa attuale (${ctx.shoppingList.length}): ${ctx.shoppingList.map(i => i.name).join(', ')}`
+    snapshot += `\n\nLista spesa (${ctx.shoppingList.length}): ${ctx.shoppingList.map(i => i.name).join(', ')}`
   }
+
+  snapshot += `\n\nMembri famiglia: ${ctx.householdMembers.map(m => m.full_name).join(', ')}`
+
   return snapshot
 }
 
 // ---------------------------------------------------------------------------
-// AI Brain — single conversational AI with tools
+// Conversation memory
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function saveMessage(supabase: any, userId: string, householdId: string, role: string, content: string) {
+  try {
+    await supabase.from('wa_messages').insert({
+      user_id: userId,
+      household_id: householdId,
+      role,
+      content: content.substring(0, 2000), // cap storage
+    })
+  } catch {
+    // Non-critical, don't fail the request
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notify household members
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function notifyHousehold(supabase: any, householdId: string, excludeUserId: string, message: string) {
+  try {
+    const { data: members } = await supabase
+      .from('users')
+      .select('whatsapp_number')
+      .eq('household_id', householdId)
+      .not('id', 'eq', excludeUserId)
+      .not('whatsapp_number', 'is', null)
+
+    if (!members || members.length === 0) return
+
+    for (const member of members) {
+      await sendWhatsApp(member.whatsapp_number, message)
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AI Brain
 // ---------------------------------------------------------------------------
 
 async function processMessage(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   householdId: string,
+  userId: string,
   ctx: FridgeContext,
   userMessage: string,
   imageDescription?: string,
 ): Promise<string> {
   const fridgeSnapshot = buildFridgeSnapshot(ctx)
 
+  // Build conversation history for context
+  const historyMessages = ctx.conversationHistory.map((m) => ({
+    role: m.role as 'user' | 'model',
+    parts: [{ text: m.content }],
+  }))
+
   const systemPrompt = `Sei *Kitchen Steward*, un assistente domestico italiano per WhatsApp — simpatico, pratico e anti-spreco.
 
 CONTESTO FRIGO DELLA FAMIGLIA:
 ${fridgeSnapshot}
 
-REGOLE:
-1. Rispondi SEMPRE in italiano, in modo naturale e amichevole
-2. Usa formattazione WhatsApp: *grassetto*, _corsivo_, ~barrato~
+REGOLE IMPORTANTI:
+1. Rispondi SEMPRE in italiano, in modo naturale e amichevole. Usa il nome dell'utente (${ctx.userName}) ogni tanto.
+2. Usa formattazione WhatsApp: *grassetto*, _corsivo_
 3. Usa emoji con moderazione ma efficacia
-4. Sii conciso ma completo (WhatsApp, non un blog)
-5. IMPORTANTISSIMO: Alla fine di OGNI risposta, DEVI aggiungere un menu di opzioni numerate. L'utente può rispondere con il numero per scegliere. Formato OBBLIGATORIO:
+4. Sii conciso (max 800 caratteri escluse le opzioni). WhatsApp non è un blog.
+5. HAI MEMORIA: sopra ci sono i messaggi precedenti della conversazione. Usali per capire il contesto. Se l'utente dice "un'altra" o "ancora" o "cambia", riferisciti a ciò che hai detto prima.
 
-⬇️ *Scegli un'opzione:*
-1️⃣ [azione contestuale breve]
-2️⃣ [azione contestuale breve]
-3️⃣ [azione contestuale breve]
+MENU OPZIONI (OBBLIGATORIO):
+Alla fine di OGNI risposta, aggiungi SEMPRE un menu di opzioni numerate. L'utente può rispondere con il numero. Formato:
 
-Le opzioni devono essere DIVERSE ogni volta e CONTESTUALI a quello che hai appena detto. Esempi:
-- Dopo aver mostrato il frigo: "1️⃣ Suggeriscimi una ricetta 2️⃣ Cosa sta per scadere? 3️⃣ Genera la lista spesa"
-- Dopo una ricetta: "1️⃣ Dammi un'altra ricetta 2️⃣ Segna gli ingredienti come usati 3️⃣ Aggiungi ingredienti mancanti alla spesa"
-- Dopo aver aggiunto prodotti: "1️⃣ Mostra il frigo aggiornato 2️⃣ Cosa cucino con questi? 3️⃣ Cos'altro mi serve?"
+⬇️ *Scegli:*
+1️⃣ [azione breve]
+2️⃣ [azione breve]
+3️⃣ [azione breve]
 
-6. Quando l'utente risponde SOLO con un numero (1, 2, 3), esegui l'azione corrispondente all'ultima opzione che hai proposto. Se non sai quale fosse, interpreta: 1=frigo, 2=ricetta, 3=spesa.
+Le opzioni devono essere CONTESTUALI. Esempi:
+- Dopo frigo: 1 Ricetta 2 Scadenze 3 Genera spesa
+- Dopo ricetta: 1 Un'altra ricetta 2 Segna ingredienti usati 3 Cosa manca per questa ricetta?
+- Dopo aggiunta prodotti: 1 Mostra frigo 2 Cosa cucino? 3 Cos'altro mi serve?
+- Dopo spesa: 1 Aggiungi altro 2 Ricetta con quello che ho 3 Mostra frigo
 
-CAPACITÀ:
-- Mostrare il contenuto del frigo in modo organizzato
-- Suggerire ricette basate su ingredienti (priorità a quelli in scadenza), con dettagli: tempo, porzioni, passi
-- Generare lista della spesa intelligente
-- Dare consigli anti-spreco e curiosità sul cibo
-- Capire quando l'utente vuole aggiungere o togliere prodotti
-- Rispondere a domande generiche su cucina, conservazione, nutrizione
+Quando l'utente risponde SOLO con un numero (1, 2, 3), esegui l'opzione corrispondente dall'ultimo menu proposto nella conversazione.
 
 FORMATO LISTA DELLA SPESA:
-Quando generi una lista della spesa, usa SEMPRE questo formato (ottimizzato per copia su Google Keep e Apple Notes):
+Quando generi una lista della spesa, usa questo formato pulito per copia-incolla su Google Keep / Apple Notes:
 
 🛒 *Lista della spesa*
 
 ☐ Latte
 ☐ Uova
 ☐ Pane
-☐ Pomodori
-[ecc.]
 
-📋 _Tieni premuto questo messaggio → Copia → Incolla su Google Keep o Apple Notes per usarla al supermercato!_
+📋 _Tieni premuto → Copia → Incolla su Google Keep o Note!_
 
-Ogni riga ☐ diventa automaticamente un checkbox quando incollata in Google Keep. Mantieni la lista PULITA: solo ☐ e il nome del prodotto, senza categorie o extra, così è perfetta da copiare.
-Se vuoi raggruppare per reparto, usa intestazioni semplici come *🥛 Latticini:* prima del gruppo.
+Ogni riga ☐ diventa checkbox in Google Keep. Lista PULITA: solo ☐ + nome.
 
-Dopo la lista aggiungi SEMPRE il suggerimento su come esportare e le opzioni numerate.
-
-AZIONI SPECIALI — quando l'utente vuole AGGIUNGERE o RIMUOVERE prodotti, rispondi con un JSON block che il sistema interpreterà.
-
-Per AGGIUNGERE prodotti, includi nel tuo messaggio:
+AZIONI DATABASE:
+Quando l'utente vuole AGGIUNGERE prodotti al frigo:
 <<<ADD_ITEMS>>>
 [{"name": "...", "qty": N, "unit": "pz|kg|g|litri|ml|scatole", "estimated_expiry_days": N, "category": "Protein|Vegetable|Fruit|Dairy|Carbohydrate|Condiment|General"}]
 <<<END_ITEMS>>>
 
-Per RIMUOVERE prodotti, includi:
+Quando vuole RIMUOVERE prodotti:
 <<<DELETE_ITEMS>>>
-["nome prodotto 1", "nome prodotto 2"]
+["nome1", "nome2"]
 <<<END_ITEMS>>>
 
-Per SALVARE la lista della spesa nel database, includi:
+Quando generi una lista della spesa, salvala anche:
 <<<SAVE_SHOPPING>>>
-[{"name": "nome prodotto", "category": "General"}]
+[{"name": "...", "category": "General"}]
 <<<END_ITEMS>>>
 
-Il testo visibile prima/dopo i blocchi verrà mostrato all'utente (i blocchi stessi verranno nascosti).
+IMPORTANTE PER RIMOZIONE: prima di rimuovere, chiedi conferma! "Rimuovo X dal frigo?" e metti come opzione 1️⃣ Sì, rimuovi. Solo quando l'utente conferma, includi il blocco DELETE_ITEMS.
+
+NOTIFICA FAMIGLIA:
+Quando l'utente aggiunge o rimuove prodotti, includi un blocco notifica:
+<<<NOTIFY_FAMILY>>>
+[messaggio breve per gli altri membri, es: "🛒 David ha aggiunto pollo e uova al frigo"]
+<<<END_NOTIFY>>>
+
+I blocchi <<<>>> vengono rimossi dal messaggio visibile. Il testo prima/dopo è ciò che l'utente vede.
 Se l'utente invia una foto, la descrizione è fornita come contesto.`
 
-  const userContent = imageDescription
-    ? `[L'utente ha inviato una foto: ${imageDescription}]\n\nMessaggio: ${userMessage || '(nessun testo)'}`
-    : userMessage
+  const contents = [
+    { role: 'user' as const, parts: [{ text: systemPrompt }] },
+    { role: 'model' as const, parts: [{ text: 'Capito! Sono Kitchen Steward.' }] },
+    ...historyMessages.map(m => ({
+      role: (m.role === 'user' ? 'user' : 'model') as 'user' | 'model',
+      parts: m.parts,
+    })),
+    {
+      role: 'user' as const,
+      parts: [{
+        text: imageDescription
+          ? `[Foto inviata: ${imageDescription}]\n${userMessage || ''}`
+          : userMessage,
+      }],
+    },
+  ]
 
   const result = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
-    contents: [
-      { role: 'user', parts: [{ text: systemPrompt }] },
-      { role: 'model', parts: [{ text: 'Capito! Sono Kitchen Steward, pronto ad aiutare.' }] },
-      { role: 'user', parts: [{ text: userContent }] },
-    ],
+    contents,
   })
 
   let reply = result.text?.trim() || 'Scusa, non ho capito. Puoi ripetere?'
@@ -259,13 +330,11 @@ Se l'utente invia una foto, la descrizione è fornita come contesto.`
             ? new Date(Date.now() + item.estimated_expiry_days * 86_400_000).toISOString().split('T')[0]
             : null,
         }))
-        const { error } = await supabase.from('inventory_items').insert(rows)
-        if (error) console.error('Insert error:', error)
+        await supabase.from('inventory_items').insert(rows)
       }
     } catch (e) {
-      console.error('ADD_ITEMS parse error:', e)
+      console.error('ADD_ITEMS error:', e)
     }
-    // Remove the block from visible reply
     reply = reply.replace(/<<<ADD_ITEMS>>>[\s\S]*?<<<END_ITEMS>>>/g, '').trim()
   }
 
@@ -285,12 +354,12 @@ Se l'utente invia una foto, la descrizione è fornita come contesto.`
         }
       }
     } catch (e) {
-      console.error('DELETE_ITEMS parse error:', e)
+      console.error('DELETE_ITEMS error:', e)
     }
     reply = reply.replace(/<<<DELETE_ITEMS>>>[\s\S]*?<<<END_ITEMS>>>/g, '').trim()
   }
 
-  // Process SHOPPING_LIST save
+  // Process SAVE_SHOPPING
   const shopMatch = reply.match(/<<<SAVE_SHOPPING>>>\n?([\s\S]*?)\n?<<<END_ITEMS>>>/)
   if (shopMatch) {
     try {
@@ -310,13 +379,28 @@ Se l'utente invia una foto, la descrizione è fornita come contesto.`
         }
       }
     } catch (e) {
-      console.error('SAVE_SHOPPING parse error:', e)
+      console.error('SAVE_SHOPPING error:', e)
     }
     reply = reply.replace(/<<<SAVE_SHOPPING>>>[\s\S]*?<<<END_ITEMS>>>/g, '').trim()
   }
 
-  // Clean up any remaining empty lines from block removal
+  // Process NOTIFY_FAMILY
+  const notifyMatch = reply.match(/<<<NOTIFY_FAMILY>>>\n?([\s\S]*?)\n?<<<END_NOTIFY>>>/)
+  if (notifyMatch) {
+    const notifyMsg = notifyMatch[1].trim()
+    if (notifyMsg) {
+      // Fire and forget — don't block the response
+      notifyHousehold(supabase, householdId, userId, notifyMsg).catch(() => {})
+    }
+    reply = reply.replace(/<<<NOTIFY_FAMILY>>>[\s\S]*?<<<END_NOTIFY>>>/g, '').trim()
+  }
+
+  // Clean up empty lines
   reply = reply.replace(/\n{3,}/g, '\n\n')
+
+  // Save conversation to memory
+  await saveMessage(supabase, userId, householdId, 'user', userMessage)
+  await saveMessage(supabase, userId, householdId, 'assistant', reply)
 
   return reply
 }
@@ -336,8 +420,6 @@ export async function POST(request: Request) {
     const from = (formData.get('From') as string | null) ?? ''
     const numMedia = parseInt((formData.get('NumMedia') as string) || '0', 10)
 
-    console.log('[webhook]', { from, body: body.substring(0, 50), numMedia })
-
     const phoneNumber = parseWhatsAppNumber(from)
     const supabase = getSupabaseAdmin()
 
@@ -352,7 +434,7 @@ export async function POST(request: Request) {
     }
 
     if (!user.household_id) {
-      return twiml('Il tuo account non è collegato a nessun nucleo familiare. Completa la configurazione su Kitchen Steward.')
+      return twiml('Completa la configurazione su Kitchen Steward prima di usare la chat.')
     }
 
     // Handle media
@@ -366,13 +448,10 @@ export async function POST(request: Request) {
         if (transcribed) {
           body = transcribed
         } else {
-          return twiml('🎤 Non sono riuscito a capire il vocale. Puoi riprovare o scriverlo?')
+          return twiml('🎤 Non ho capito il vocale. Puoi riprovare o scriverlo?')
         }
       } else if (mediaType.startsWith('image/') && mediaUrl) {
-        imageDescription = await extractFromImage(mediaUrl, mediaType, body) ?? undefined
-        if (!imageDescription && !body) {
-          return twiml('📷 Non sono riuscito a capire l\'immagine. Prova ad aggiungere una descrizione!')
-        }
+        imageDescription = await describeImage(mediaUrl, mediaType, body) ?? undefined
       }
     }
 
@@ -380,16 +459,13 @@ export async function POST(request: Request) {
       return twiml('Non ho ricevuto nessun messaggio. Scrivimi qualcosa!')
     }
 
-    // Load full fridge context
-    const ctx = await loadFridgeContext(supabase, user.household_id, user.id)
-
-    // Let the AI brain handle everything
-    const reply = await processMessage(supabase, user.household_id, ctx, body, imageDescription)
+    // Load context and process
+    const ctx = await loadContext(supabase, user.household_id, user.id)
+    const reply = await processMessage(supabase, user.household_id, user.id, ctx, body, imageDescription)
 
     return twiml(reply)
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error)
-    console.error('WhatsApp webhook error:', errMsg, error)
-    return twiml(`Errore: ${errMsg.substring(0, 200)}`)
+    console.error('WhatsApp webhook error:', error)
+    return twiml('Si è verificato un errore. Riprova tra qualche istante.')
   }
 }
