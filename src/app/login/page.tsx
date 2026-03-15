@@ -84,12 +84,12 @@ export default async function LoginPage({
                 minLength={6}
                 required
               />
-              <Button
+              <button
                 formAction={signup}
-                className="mt-4 bg-olive-600 hover:bg-olive-700 text-white rounded-xl h-auto py-3 font-semibold active:scale-95 transition-all"
+                className="mt-4 bg-olive-600 hover:bg-olive-700 text-white rounded-xl py-3 font-semibold active:scale-95 transition-all w-full"
               >
                 Create Free Account
-              </Button>
+              </button>
             </form>
           )}
 
@@ -116,12 +116,12 @@ export default async function LoginPage({
                 placeholder="••••••••"
                 required
               />
-              <Button
+              <button
                 formAction={login}
-                className="mt-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl h-auto py-3 font-semibold active:scale-95 transition-all"
+                className="mt-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-3 font-semibold active:scale-95 transition-all w-full"
               >
                 Sign In
-              </Button>
+              </button>
             </form>
           )}
         </CardContent>

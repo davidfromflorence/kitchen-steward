@@ -69,9 +69,9 @@ export default async function SetupPage({
                 placeholder="e.g. Bottai Family"
                 required
               />
-              <Button className="bg-olive-600 hover:bg-olive-700 text-white rounded-xl h-auto py-3 font-semibold transition-all">
+              <button className="bg-olive-600 hover:bg-olive-700 text-white rounded-xl py-3 font-semibold transition-all w-full">
                 Create & Start
-              </Button>
+              </button>
             </form>
           </CardContent>
         </Card>
@@ -108,9 +108,9 @@ export default async function SetupPage({
                 placeholder="8-CHAR CODE"
                 required
               />
-              <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl h-auto py-3 font-semibold transition-all">
+              <button className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-3 font-semibold transition-all w-full">
                 Join Household
-              </Button>
+              </button>
             </form>
           </CardContent>
         </Card>
