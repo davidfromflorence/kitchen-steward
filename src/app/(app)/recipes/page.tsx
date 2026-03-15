@@ -59,25 +59,16 @@ export default async function RecipesPage() {
         </p>
       </div>
 
-      {inventory.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-12 text-center">
-          <Refrigerator className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-slate-700 mb-2">
-            Nothing in the pantry yet
-          </h2>
-          <p className="text-slate-500 text-sm mb-6">
-            Add items to your fridge first so the AI Chef can craft recipes.
+      {inventory.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <Refrigerator className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <p className="text-sm text-amber-700">
+            Your fridge is empty — the AI Chef will generate recipes from general ingredients. <a href="/fridge" className="font-semibold underline">Add items</a> for personalized suggestions.
           </p>
-          <a
-            href="/dashboard"
-            className="inline-flex items-center gap-2 bg-olive-600 text-white px-6 py-3 rounded-2xl font-semibold hover:bg-olive-700 active:scale-95 transition-all"
-          >
-            Go to Dashboard
-          </a>
         </div>
-      ) : (
-        <RecipeClient ingredients={ingredients} />
       )}
+
+      <RecipeClient ingredients={ingredients} />
 
     </div>
   )
