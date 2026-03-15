@@ -14,7 +14,7 @@ export async function updatePhoneNumber(formData: FormData) {
     return { error: 'Non autenticato.' }
   }
 
-  const raw = formData.get('whatsapp_number') as string | null
+  const raw = formData.get('phone_number') as string | null
   if (!raw || raw.trim() === '') {
     return { error: 'Inserisci un numero di telefono.' }
   }
