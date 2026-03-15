@@ -20,7 +20,8 @@ export async function login(formData: FormData) {
 
   if (error) {
     console.error('[login error]', error.message, '| email:', email, '| password length:', password.length)
-    redirect(`/login?tab=signin&message=${encodeURIComponent(error.message)}`)
+    const debug = `${error.message} (email: ${email}, pwd length: ${password?.length ?? 'null'})`
+    redirect(`/login?tab=signin&message=${encodeURIComponent(debug)}`)
   }
 
   revalidatePath('/', 'layout')
