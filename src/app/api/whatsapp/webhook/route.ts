@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, household_id')
-      .eq('phone_number', phoneNumber)
+      .eq('whatsapp_number', phoneNumber)
       .single()
 
     if (userError || !user) {

@@ -29,7 +29,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('full_name, household_id, phone_number')
+    .select('full_name, household_id, whatsapp_number')
     .eq('id', user.id)
     .single()
 
@@ -144,7 +144,7 @@ export default async function SettingsPage() {
       )}
 
       {/* WhatsApp Integration */}
-      <WhatsAppLinkForm phoneNumber={profile.phone_number ?? null} />
+      <WhatsAppLinkForm phoneNumber={profile.whatsapp_number ?? null} />
 
       {/* Actions */}
       <div className="flex flex-col gap-3">

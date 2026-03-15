@@ -14,7 +14,7 @@ export async function updatePhoneNumber(formData: FormData) {
     return { error: 'Non autenticato.' }
   }
 
-  const raw = formData.get('phone_number') as string | null
+  const raw = formData.get('whatsapp_number') as string | null
   if (!raw || raw.trim() === '') {
     return { error: 'Inserisci un numero di telefono.' }
   }
@@ -33,7 +33,7 @@ export async function updatePhoneNumber(formData: FormData) {
 
   const { error } = await supabase
     .from('users')
-    .update({ phone_number: phone })
+    .update({ whatsapp_number: phone })
     .eq('id', user.id)
 
   if (error) {
