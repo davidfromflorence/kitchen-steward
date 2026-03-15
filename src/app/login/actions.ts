@@ -64,16 +64,21 @@ export async function signup(formData: FormData) {
     }
   }
 
-  // If email confirmation is enabled, user won't have a session yet
-  // Show "check your email" message instead of redirecting to /setup
-  const hasSession = !!authData.session
-  if (hasSession) {
-    // Email confirmation disabled — go straight to setup
+  // If we got a session, go straight to setup
+  if (authData.session) {
     revalidatePath('/', 'layout')
     redirect('/setup')
   }
 
-  // Email confirmation enabled — show confirmation message
+  // No session — either email confirmation is pending, or user was auto-confirmed
+  // Try signing in directly (works if user was auto-confirmed)
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+  if (!signInError) {
+    revalidatePath('/', 'layout')
+    redirect('/setup')
+  }
+
+  // Truly needs email confirmation
   redirect(`/login?tab=confirm&email=${encodeURIComponent(email)}`)
 }
 
