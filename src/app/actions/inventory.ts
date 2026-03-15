@@ -37,6 +37,11 @@ export async function addItem(formData: FormData) {
   const category = (formData.get('category') as string) || 'General'
   const expiry_date = formData.get('expiry_date') as string | null
 
+  const cat = category.toLowerCase()
+  const zone = cat === 'frozen' ? 'freezer'
+    : ['carbohydrate', 'condiment'].includes(cat) ? 'pantry'
+    : 'fridge'
+
   const { data: inserted, error } = await supabase
     .from('inventory_items')
     .insert([
@@ -46,6 +51,7 @@ export async function addItem(formData: FormData) {
         quantity,
         unit,
         category,
+        zone,
         expiry_date: expiry_date || null,
       },
     ])
@@ -82,12 +88,19 @@ export async function addItems(
           .split('T')[0]
       : null
 
+    // Default zone based on food category
+    const cat = (item.category || 'General').toLowerCase()
+    const zone = cat === 'frozen' ? 'freezer'
+      : ['carbohydrate', 'condiment'].includes(cat) ? 'pantry'
+      : 'fridge'
+
     return {
       household_id: householdId,
       name: item.name,
       quantity: item.quantity || 1,
       unit: item.unit || 'pz',
       category: item.category || 'General',
+      zone,
       expiry_date,
     }
   })
@@ -153,21 +166,25 @@ export async function useItem(formData: FormData) {
   return { success: true }
 }
 
-export async function moveItem(id: string, zone: string) {
+export async function moveItem(id: string, targetZone: string) {
   const { supabase } = await getAuthAndHousehold()
+  const { calculateExpiryDate, normalizeZone } = await import('@/lib/shelf-life')
 
-  const zoneToCategory: Record<string, string> = {
-    Fridge: 'Dairy',
-    Freezer: 'Frozen',
-    Pantry: 'General',
-  }
+  const zone = normalizeZone(targetZone)
 
-  const category = zoneToCategory[zone]
-  if (!category) return { error: 'Invalid zone' }
+  // Get current item's food category for shelf-life calculation
+  const { data: item } = await supabase
+    .from('inventory_items')
+    .select('category')
+    .eq('id', id)
+    .single()
+
+  const foodCategory = item?.category || 'General'
+  const newExpiry = calculateExpiryDate(foodCategory, zone)
 
   const { error } = await supabase
     .from('inventory_items')
-    .update({ category })
+    .update({ zone, expiry_date: newExpiry })
     .eq('id', id)
 
   if (error) {

@@ -23,6 +23,7 @@ interface InventoryItem {
   quantity: number
   unit: string
   category: string
+  zone: string
   expiry_date: string
 }
 
@@ -89,8 +90,13 @@ function expiryBadge(expiryDate: string) {
 /* Kitchen View */
 type KitchenZone = 'Fridge' | 'Freezer' | 'Pantry'
 
-function mapToZone(category: string): KitchenZone {
-  const lower = category.toLowerCase()
+function mapToZone(item: InventoryItem): KitchenZone {
+  const z = (item.zone || '').toLowerCase()
+  if (z === 'freezer') return 'Freezer'
+  if (z === 'pantry') return 'Pantry'
+  if (z === 'fridge') return 'Fridge'
+  // Fallback: derive from category for items without zone field
+  const lower = item.category.toLowerCase()
   if (lower === 'frozen') return 'Freezer'
   if (['dairy', 'protein', 'vegetable', 'fruit'].includes(lower)) return 'Fridge'
   return 'Pantry'
@@ -136,7 +142,7 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
 
   const groupedByZone: Record<KitchenZone, InventoryItem[]> = { Fridge: [], Freezer: [], Pantry: [] }
   if (viewMode === 'kitchen') {
-    for (const item of filtered) groupedByZone[mapToZone(item.category)].push(item)
+    for (const item of filtered) groupedByZone[mapToZone(item)].push(item)
   }
 
   async function handleAction(formData: FormData, action: typeof deleteItem | typeof useItem) {
@@ -170,7 +176,7 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
     if (!itemId) return
 
     const item = items.find(i => i.id === itemId)
-    if (!item || mapToZone(item.category) === zone) return
+    if (!item || mapToZone(item) === zone) return
 
     setPendingId(itemId)
     try { await moveItem(itemId, zone) } finally { setPendingId(null) }
@@ -179,7 +185,7 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   // Mobile: long press to move
   async function handleMoveToZone(item: InventoryItem, zone: KitchenZone) {
     setMoveModalItem(null)
-    if (mapToZone(item.category) === zone) return
+    if (mapToZone(item) === zone) return
     setPendingId(item.id)
     try { await moveItem(item.id, zone) } finally { setPendingId(null) }
   }
@@ -426,10 +432,10 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
               Sposta {moveModalItem.name}
             </h3>
             <p className="text-sm text-slate-500 mb-4">
-              Attualmente in: {mapToZone(moveModalItem.category)}
+              Attualmente in: {mapToZone(moveModalItem)}
             </p>
             <div className="flex flex-col gap-2">
-              {ZONE_ORDER.filter(z => z !== mapToZone(moveModalItem.category)).map((zone) => {
+              {ZONE_ORDER.filter(z => z !== mapToZone(moveModalItem)).map((zone) => {
                 const config = ZONE_CONFIG[zone]
                 const ZoneIcon = config.icon
                 return (

@@ -21,7 +21,7 @@ export default async function FridgePage() {
 
   const { data: inventoryData } = await supabase
     .from('inventory_items')
-    .select('id, name, quantity, unit, category, expiry_date')
+    .select('id, name, quantity, unit, category, zone, expiry_date')
     .eq('household_id', profile.household_id)
     .order('expiry_date', { ascending: true })
 
