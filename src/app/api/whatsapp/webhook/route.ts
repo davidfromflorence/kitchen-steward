@@ -82,24 +82,63 @@ async function transcribeAudio(mediaUrl: string, mimeType: string): Promise<stri
   }
 }
 
-async function describeImage(mediaUrl: string, mimeType: string, caption: string): Promise<string | null> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleReceiptPhoto(supabase: any, householdId: string, mediaUrl: string, mimeType: string, caption: string): Promise<string> {
+  const res = await fetch(mediaUrl, { headers: { Authorization: twilioAuth() } })
+  if (!res.ok) return '📷 Non riesco a scaricare l\'immagine. Riprova.'
+
+  const buf = await res.arrayBuffer()
+  const result = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType, data: Buffer.from(buf).toString('base64') } },
+        { text: `Analizza questa immagine. Se è uno scontrino, ricevuta, lista della spesa, o foto di cibo/prodotti, estrai tutti i prodotti alimentari.
+${caption ? `L'utente ha scritto: "${caption}"` : ''}
+
+Rispondi SOLO con un JSON array:
+[{"name": "nome in italiano", "qty": 1, "unit": "pz|kg|g|litri|ml|scatole", "estimated_expiry_days": N, "category": "Protein|Vegetable|Fruit|Dairy|Carbohydrate|Condiment|General"}]
+
+Se non ci sono prodotti alimentari, rispondi con: []
+Solo JSON, no markdown, no backtick.` },
+      ],
+    }],
+  })
+
+  const raw = result.text?.replace(/```json\n?|\n?```/g, '').trim() || '[]'
+
   try {
-    const res = await fetch(mediaUrl, { headers: { Authorization: twilioAuth() } })
-    if (!res.ok) return null
-    const buf = await res.arrayBuffer()
-    const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{
-        role: 'user',
-        parts: [
-          { inlineData: { mimeType, data: Buffer.from(buf).toString('base64') } },
-          { text: `Descrivi cosa vedi in questa immagine nel contesto di cibo/cucina/spesa. ${caption ? `L'utente ha scritto: "${caption}"` : ''}. Rispondi in italiano, breve.` },
-        ],
-      }],
-    })
-    return result.text?.trim() || null
-  } catch {
-    return null
+    const items = JSON.parse(raw)
+    if (!Array.isArray(items) || items.length === 0) {
+      return '📷 Non ho trovato prodotti alimentari in questa immagine.\n\n⬇️ *Scegli:*\n1️⃣ Scrivi cosa hai comprato\n2️⃣ Mostra il frigo\n3️⃣ Pianifica i pasti'
+    }
+
+    const rows = items.map((item: { name: string; qty: number; unit: string; estimated_expiry_days?: number; category?: string }) => ({
+      household_id: householdId,
+      name: item.name,
+      quantity: item.qty || 1,
+      unit: item.unit || 'pz',
+      category: item.category || 'General',
+      expiry_date: item.estimated_expiry_days
+        ? new Date(Date.now() + item.estimated_expiry_days * 86_400_000).toISOString().split('T')[0]
+        : null,
+    }))
+
+    const { error } = await supabase.from('inventory_items').insert(rows)
+    if (error) {
+      console.error('Insert error:', error)
+      return '📷 Ho riconosciuto i prodotti ma non riesco a salvarli. Riprova.'
+    }
+
+    const lines = items.map((i: { name: string; qty: number; unit: string }) =>
+      `  ✅ ${i.qty} ${i.unit} ${i.name}`
+    )
+
+    return `📷 *Scontrino scansionato!*\n\nHo aggiunto al frigo:\n${lines.join('\n')}\n\n⬇️ *Scegli:*\n1️⃣ Mostra il frigo aggiornato\n2️⃣ Cosa cucino con questi?\n3️⃣ Pianifica i pasti della settimana`
+  } catch (e) {
+    console.error('Receipt parse error:', e)
+    return '📷 Non sono riuscito a leggere l\'immagine. Prova con una foto più nitida!'
   }
 }
 
@@ -212,7 +251,6 @@ async function processMessage(
   userId: string,
   ctx: FridgeContext,
   userMessage: string,
-  imageDescription?: string,
 ): Promise<string> {
   const fridgeSnapshot = buildFridgeSnapshot(ctx)
 
@@ -314,11 +352,7 @@ Se l'utente invia una foto, la descrizione è fornita come contesto.`
     })),
     {
       role: 'user' as const,
-      parts: [{
-        text: imageDescription
-          ? `[Foto inviata: ${imageDescription}]\n${userMessage || ''}`
-          : userMessage,
-      }],
+      parts: [{ text: userMessage }],
     },
   ]
 
@@ -453,7 +487,6 @@ export async function POST(request: Request) {
     }
 
     // Handle media
-    let imageDescription: string | undefined
     if (numMedia > 0) {
       const mediaType = (formData.get('MediaContentType0') as string) || ''
       const mediaUrl = formData.get('MediaUrl0') as string | null
@@ -466,17 +499,19 @@ export async function POST(request: Request) {
           return twiml('🎤 Non ho capito il vocale. Puoi riprovare o scriverlo?')
         }
       } else if (mediaType.startsWith('image/') && mediaUrl) {
-        imageDescription = await describeImage(mediaUrl, mediaType, body) ?? undefined
+        // Handle image directly — one Gemini call, extract + save
+        const result = await handleReceiptPhoto(supabase, user.household_id, mediaUrl, mediaType, body)
+        return twiml(result)
       }
     }
 
-    if (!body && !imageDescription) {
+    if (!body) {
       return twiml('Non ho ricevuto nessun messaggio. Scrivimi qualcosa!')
     }
 
-    // Load context and process
+    // Load context and process text message
     const ctx = await loadContext(supabase, user.household_id, user.id)
-    const reply = await processMessage(supabase, user.household_id, user.id, ctx, body, imageDescription)
+    const reply = await processMessage(supabase, user.household_id, user.id, ctx, body)
 
     return twiml(reply)
   } catch (error) {
