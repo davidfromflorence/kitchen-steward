@@ -9,7 +9,7 @@ import {
 } from '@/lib/whatsapp'
 
 // ---------------------------------------------------------------------------
-// Clients (initialised once per cold-start)
+// Clients
 // ---------------------------------------------------------------------------
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! })
@@ -32,20 +32,79 @@ function twiml(message: string) {
   })
 }
 
-const HELP_TEXT = `🍳 *Kitchen Steward — Comandi WhatsApp*
+// ---------------------------------------------------------------------------
+// AI Intent Detection
+// ---------------------------------------------------------------------------
 
-Scrivi qualsiasi lista di prodotti e la aggiungo al frigo.
+type Intent =
+  | { action: 'show_fridge' }
+  | { action: 'show_expiring' }
+  | { action: 'suggest_recipe'; modifiers: string }
+  | { action: 'show_shopping_list' }
+  | { action: 'generate_shopping_list' }
+  | { action: 'food_fact' }
+  | { action: 'delete_item'; item: string }
+  | { action: 'add_items'; text: string }
+  | { action: 'help' }
 
-Comandi speciali:
-• *lista* o *frigo* — mostra il contenuto del frigo
-• *scadenze* — prodotti in scadenza nei prossimi 3 giorni
-• *ricetta* — suggerisci una ricetta con quello che hai
-• *ricetta veloce* — ricetta in max 15 minuti
-• *ricetta per 4* — ricetta per 4 persone
-• *spesa* — mostra la lista della spesa
-• *curiosità* — fatto curioso sul cibo anti-spreco
-• *elimina [prodotto]* — rimuovi un prodotto dal frigo
-• *aiuto* o *help* — mostra questo messaggio`
+async function detectIntent(message: string): Promise<Intent> {
+  // Fast exact matches first (no AI call needed)
+  const lower = message.toLowerCase().trim()
+  if (lower === 'aiuto' || lower === 'help') return { action: 'help' }
+  if (lower === 'lista' || lower === 'frigo') return { action: 'show_fridge' }
+  if (lower === 'scadenze') return { action: 'show_expiring' }
+  if (lower === 'spesa') return { action: 'show_shopping_list' }
+  if (lower === 'curiosità' || lower === 'curiosita') return { action: 'food_fact' }
+  if (lower.startsWith('ricetta')) return { action: 'suggest_recipe', modifiers: lower }
+  if (lower.startsWith('elimina ')) return { action: 'delete_item', item: message.slice(8).trim() }
+
+  // For anything else, ask AI to classify
+  const prompt = `You are an intent classifier for a kitchen/fridge WhatsApp bot. Classify the user's message into ONE intent.
+
+Possible intents:
+- show_fridge: user wants to see what's in the fridge (e.g. "cosa c'è nel frigo?", "che abbiamo?", "fammi vedere il frigo", "what's in the fridge")
+- show_expiring: user asks about expiring items (e.g. "cosa scade?", "scadenze", "cosa sta per scadere?")
+- suggest_recipe: user wants a recipe suggestion (e.g. "cosa cucino stasera?", "suggeriscimi una ricetta", "what should I cook?", "ho fame")
+- show_shopping_list: user wants to see the current shopping list (e.g. "cosa devo comprare?", "lista spesa", "mostra la spesa")
+- generate_shopping_list: user wants AI to suggest what to buy based on fridge (e.g. "cosa mi manca?", "generami la spesa", "cosa dovrei comprare?", "what should I buy?", "prepara la lista della spesa")
+- food_fact: user wants a food fact or curiosity (e.g. "dimmi una curiosità", "fun fact", "lo sapevi che")
+- delete_item: user wants to remove something (e.g. "ho finito il latte", "togli le uova", "abbiamo usato il pollo"). Extract the item name.
+- add_items: user is listing groceries they bought/want to add (e.g. "ho comprato 2kg pollo e uova", "aggiungi latte", "pane, burro, mozzarella")
+- help: user asks for help (e.g. "cosa puoi fare?", "come funziona?")
+
+User message: "${message}"
+
+Respond with ONLY a JSON object: {"action": "...", "item": "...", "modifiers": "..."}
+- "item" only for delete_item
+- "modifiers" only for suggest_recipe (include the full user message)
+- No other fields needed
+Return ONLY JSON, no markdown.`
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    })
+
+    const raw = response.text?.replace(/```json\n?|\n?```/g, '').trim() || '{}'
+    const parsed = JSON.parse(raw)
+
+    switch (parsed.action) {
+      case 'show_fridge': return { action: 'show_fridge' }
+      case 'show_expiring': return { action: 'show_expiring' }
+      case 'suggest_recipe': return { action: 'suggest_recipe', modifiers: parsed.modifiers || message }
+      case 'show_shopping_list': return { action: 'show_shopping_list' }
+      case 'generate_shopping_list': return { action: 'generate_shopping_list' }
+      case 'food_fact': return { action: 'food_fact' }
+      case 'delete_item': return { action: 'delete_item', item: parsed.item || '' }
+      case 'help': return { action: 'help' }
+      default: return { action: 'add_items', text: message }
+    }
+  } catch {
+    // If AI classification fails, default to add_items
+    return { action: 'add_items', text: message }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // GET — webhook verification
@@ -66,8 +125,6 @@ export async function POST(request: Request) {
     const from = (formData.get('From') as string | null) ?? ''
 
     const phoneNumber = parseWhatsAppNumber(from)
-
-    // --- Authenticate user by phone number ---
     const supabase = getSupabaseAdmin()
 
     const { data: user, error: userError } = await supabase
@@ -90,46 +147,52 @@ export async function POST(request: Request) {
       )
     }
 
-    // --- Route command ---
-    const command = body.toLowerCase()
+    // Detect intent via AI
+    const intent = await detectIntent(body)
 
-    if (command === 'aiuto' || command === 'help') {
-      return twiml(HELP_TEXT)
+    switch (intent.action) {
+      case 'help':
+        return twiml(HELP_TEXT)
+      case 'show_fridge':
+        return await handleInventoryList(supabase, householdId)
+      case 'show_expiring':
+        return await handleExpiring(supabase, householdId)
+      case 'suggest_recipe':
+        return await handleRecipeSuggestion(supabase, householdId, intent.modifiers)
+      case 'show_shopping_list':
+        return await handleShoppingList(supabase, householdId)
+      case 'generate_shopping_list':
+        return await handleGenerateShoppingList(supabase, householdId)
+      case 'food_fact':
+        return await handleFoodFact()
+      case 'delete_item':
+        return await handleDeleteItem(supabase, householdId, intent.item)
+      case 'add_items':
+        return await handleAddItems(supabase, householdId, intent.text)
     }
-
-    if (command === 'lista' || command === 'frigo') {
-      return await handleInventoryList(supabase, householdId)
-    }
-
-    if (command === 'scadenze') {
-      return await handleExpiring(supabase, householdId)
-    }
-
-    if (command.startsWith('ricetta')) {
-      return await handleRecipeSuggestion(supabase, householdId, command)
-    }
-
-    if (command === 'spesa') {
-      return await handleShoppingList(supabase, householdId)
-    }
-
-    if (command === 'curiosità' || command === 'curiosita') {
-      return await handleFoodFact()
-    }
-
-    if (command.startsWith('elimina ')) {
-      return await handleDeleteItem(supabase, householdId, body.slice(8).trim())
-    }
-
-    // Default: treat as grocery text to parse & add
-    return await handleAddItems(supabase, householdId, body)
   } catch (error) {
     console.error('WhatsApp webhook error:', error)
-    return twiml(
-      'Si è verificato un errore. Riprova tra qualche istante.'
-    )
+    return twiml('Si è verificato un errore. Riprova tra qualche istante.')
   }
 }
+
+// ---------------------------------------------------------------------------
+// Help text
+// ---------------------------------------------------------------------------
+
+const HELP_TEXT = `🍳 *Kitchen Steward*
+
+Parla con me in modo naturale! Ecco cosa posso fare:
+
+🧊 *Frigo* — "Cosa c'è nel frigo?" "Che abbiamo?"
+⏰ *Scadenze* — "Cosa sta per scadere?"
+🍽️ *Ricette* — "Cosa cucino stasera?" "Ricetta veloce per 4"
+🛒 *Spesa* — "Cosa devo comprare?" "Genera la lista della spesa"
+🗑️ *Elimina* — "Ho finito il latte" "Togli le uova"
+💡 *Curiosità* — "Dimmi una curiosità sul cibo"
+➕ *Aggiungi* — Scrivi cosa hai comprato: "Pollo, 6 uova, latte"
+
+La spesa generata è formattata per copiarla su Google Keep! 📋`
 
 // ---------------------------------------------------------------------------
 // Command handlers
@@ -185,7 +248,7 @@ async function handleExpiring(supabase: any, householdId: string) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handleRecipeSuggestion(supabase: any, householdId: string, command: string) {
+async function handleRecipeSuggestion(supabase: any, householdId: string, userMessage: string) {
   const { data: items, error } = await supabase
     .from('inventory_items')
     .select('name, quantity, unit, category, expiry_date')
@@ -193,15 +256,13 @@ async function handleRecipeSuggestion(supabase: any, householdId: string, comman
     .order('expiry_date', { ascending: true, nullsFirst: false })
 
   if (error || !items || items.length === 0) {
-    return twiml(
-      'Il frigo è vuoto, non posso suggerire una ricetta! Aggiungi prima qualcosa.'
-    )
+    return twiml('Il frigo è vuoto, non posso suggerire una ricetta! Aggiungi prima qualcosa.')
   }
 
-  // Parse optional modifiers from command
+  const command = userMessage.toLowerCase()
   const timeMatch = command.match(/(\d+)\s*min/)
   const servingsMatch = command.match(/per\s*(\d+)/)
-  const isQuick = command.includes('veloce') || command.includes('rapida')
+  const isQuick = command.includes('veloce') || command.includes('rapida') || command.includes('quick')
 
   const maxTime = timeMatch ? parseInt(timeMatch[1]) : isQuick ? 15 : null
   const servings = servingsMatch ? parseInt(servingsMatch[1]) : 2
@@ -209,21 +270,20 @@ async function handleRecipeSuggestion(supabase: any, householdId: string, comman
   const ingredientsList = items
     .map((i: { name: string; quantity: number; unit: string; expiry_date: string | null }) => {
       const daysLeft = i.expiry_date
-        ? Math.ceil(
-            (new Date(i.expiry_date).getTime() - Date.now()) / 86_400_000
-          )
+        ? Math.ceil((new Date(i.expiry_date).getTime() - Date.now()) / 86_400_000)
         : null
       return `- ${i.quantity} ${i.unit} ${i.name}${daysLeft !== null ? ` (scade tra ${daysLeft} giorni)` : ''}`
     })
     .join('\n')
 
   const timeConstraint = maxTime ? `\nTempo massimo di preparazione: ${maxTime} minuti.` : ''
+  const userContext = command !== 'ricetta' ? `\nRichiesta specifica dell'utente: "${userMessage}"` : ''
 
   const prompt = `Sei uno chef anti-spreco italiano creativo e simpatico. Dati questi ingredienti nel frigo, suggerisci UNA ricetta per ${servings} persone che usi prioritariamente gli ingredienti che scadono prima.
 
 Ingredienti:
 ${ingredientsList}
-${timeConstraint}
+${timeConstraint}${userContext}
 
 Rispondi in italiano con questo formato:
 🍽️ *[Nome ricetta]*
@@ -245,10 +305,7 @@ Usa emoji e formattazione WhatsApp (*grassetto*). Testo semplice, no JSON, no ma
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     })
-
-    const recipeText =
-      response.text?.trim() || 'Non sono riuscito a generare una ricetta.'
-    return twiml(recipeText)
+    return twiml(response.text?.trim() || 'Non sono riuscito a generare una ricetta.')
   } catch (err) {
     console.error('Recipe generation error:', err)
     return twiml('Non riesco a generare una ricetta in questo momento. Riprova!')
@@ -269,7 +326,7 @@ async function handleShoppingList(supabase: any, householdId: string) {
   }
 
   if (!items || items.length === 0) {
-    return twiml('🛒 La lista della spesa è vuota!')
+    return twiml('🛒 La lista della spesa è vuota!\n\nScrivi "genera la spesa" per creare una lista basata su ciò che manca nel frigo.')
   }
 
   const unchecked = items.filter((i: { checked: boolean }) => !i.checked)
@@ -287,12 +344,164 @@ async function handleShoppingList(supabase: any, householdId: string) {
 
   if (checked.length > 0) {
     msg += `\n\n✅ *Già presi (${checked.length}):*\n`
-    msg += checked
-      .map((i: { name: string }) => `  ~${i.name}~`)
-      .join('\n')
+    msg += checked.map((i: { name: string }) => `  ~${i.name}~`).join('\n')
   }
 
   return twiml(msg)
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleGenerateShoppingList(supabase: any, householdId: string) {
+  // Fetch current inventory
+  const { data: inventory } = await supabase
+    .from('inventory_items')
+    .select('name, quantity, unit, category, expiry_date')
+    .eq('household_id', householdId)
+
+  // Fetch existing shopping list
+  const { data: existingList } = await supabase
+    .from('shopping_list_items')
+    .select('name')
+    .eq('household_id', householdId)
+    .eq('checked', false)
+
+  const inventoryText = (inventory || [])
+    .map((i: { name: string; quantity: number; unit: string; category: string; expiry_date: string | null }) => {
+      const exp = i.expiry_date
+        ? ` (scade: ${i.expiry_date})`
+        : ''
+      return `- ${i.quantity} ${i.unit} ${i.name} [${i.category}]${exp}`
+    })
+    .join('\n') || 'Frigo vuoto'
+
+  const existingText = (existingList || [])
+    .map((i: { name: string }) => i.name)
+    .join(', ') || 'nessuno'
+
+  const prompt = `Sei un assistente domestico italiano esperto. Analizza il contenuto del frigo di una famiglia e suggerisci cosa comprare.
+
+Contenuto attuale del frigo:
+${inventoryText}
+
+Già nella lista della spesa: ${existingText}
+
+Genera una lista della spesa intelligente che:
+1. Includa gli ESSENZIALI che mancano o stanno finendo (latte, uova, pane, frutta, verdura di base)
+2. Suggerisca ingredienti complementari per pasti equilibrati della settimana
+3. NON ripeta ciò che è già nel frigo in quantità sufficiente
+4. NON ripeta ciò che è già nella lista della spesa
+5. Raggruppi per categoria del supermercato
+
+Rispondi con questo formato ESATTO (ogni riga è un elemento da copiare su Google Keep):
+
+🛒 *Lista della spesa suggerita*
+
+*🥛 Latticini:*
+☐ Latte
+☐ Yogurt
+
+*🥩 Carne/Pesce:*
+☐ Petto di pollo
+
+*🥬 Frutta e Verdura:*
+☐ Pomodori
+☐ Banane
+
+*🍞 Pane e Cereali:*
+☐ Pane integrale
+
+*🧂 Dispensa:*
+☐ Olio d'oliva
+
+📋 _Copia questo messaggio su Google Keep per usarlo al supermercato!_
+
+Suggerisci 10-15 prodotti max. Solo prodotti comuni italiani. No JSON, no backtick.`
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    })
+
+    const listText = response.text?.trim() || 'Non sono riuscito a generare la lista.'
+
+    // Also save suggested items to the shopping_list_items table
+    await saveGeneratedListToDb(supabase, householdId, listText)
+
+    return twiml(listText)
+  } catch (err) {
+    console.error('Shopping list generation error:', err)
+    return twiml('Non riesco a generare la lista della spesa in questo momento.')
+  }
+}
+
+async function saveGeneratedListToDb(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  householdId: string,
+  listText: string,
+) {
+  // Extract items from the ☐ lines
+  const lines = listText.split('\n')
+  const items: Array<{ name: string; category: string }> = []
+
+  let currentCategory = 'General'
+  const categoryMap: Record<string, string> = {
+    'latticini': 'Dairy',
+    'carne': 'Protein',
+    'pesce': 'Protein',
+    'frutta': 'Fruit',
+    'verdura': 'Vegetable',
+    'pane': 'Carbohydrate',
+    'cereali': 'Carbohydrate',
+    'dispensa': 'Condiment',
+  }
+
+  for (const line of lines) {
+    // Detect category headers
+    const headerMatch = line.match(/\*.*?([A-Za-zÀ-ú/ ]+).*?\*/)
+    if (headerMatch) {
+      const headerLower = headerMatch[1].toLowerCase()
+      for (const [key, cat] of Object.entries(categoryMap)) {
+        if (headerLower.includes(key)) {
+          currentCategory = cat
+          break
+        }
+      }
+    }
+
+    // Detect items (☐ lines)
+    const itemMatch = line.match(/☐\s*(.+)/)
+    if (itemMatch) {
+      items.push({ name: itemMatch[1].trim(), category: currentCategory })
+    }
+  }
+
+  if (items.length === 0) return
+
+  // Check which items already exist in the shopping list
+  const { data: existing } = await supabase
+    .from('shopping_list_items')
+    .select('name')
+    .eq('household_id', householdId)
+    .eq('checked', false)
+
+  const existingNames = new Set(
+    (existing || []).map((i: { name: string }) => i.name.toLowerCase())
+  )
+
+  const newItems = items
+    .filter((i) => !existingNames.has(i.name.toLowerCase()))
+    .map((i) => ({
+      household_id: householdId,
+      name: i.name,
+      category: i.category,
+      checked: false,
+    }))
+
+  if (newItems.length > 0) {
+    await supabase.from('shopping_list_items').insert(newItems)
+  }
 }
 
 async function handleFoodFact() {
@@ -316,7 +525,6 @@ Usa formattazione WhatsApp. No JSON, no backtick.`
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     })
-
     return twiml(response.text?.trim() || 'Non riesco a generare una curiosità in questo momento.')
   } catch (err) {
     console.error('Food fact error:', err)
@@ -327,10 +535,9 @@ Usa formattazione WhatsApp. No JSON, no backtick.`
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleDeleteItem(supabase: any, householdId: string, itemName: string) {
   if (!itemName) {
-    return twiml('Scrivi *elimina* seguito dal nome del prodotto. Es: *elimina latte*')
+    return twiml('Dimmi quale prodotto vuoi togliere. Es: "ho finito il latte"')
   }
 
-  // Fuzzy match: find items whose name contains the search term
   const { data: items, error } = await supabase
     .from('inventory_items')
     .select('id, name, quantity, unit')
@@ -345,7 +552,6 @@ async function handleDeleteItem(supabase: any, householdId: string, itemName: st
     return twiml(`Non ho trovato "${itemName}" nel tuo frigo.`)
   }
 
-  // Delete all matching items
   const ids = items.map((i: { id: string }) => i.id)
   const { error: deleteError } = await supabase
     .from('inventory_items')
@@ -371,7 +577,7 @@ async function handleAddItems(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   householdId: string,
-  text: string
+  text: string,
 ) {
   const prompt = `You are a kitchen inventory assistant. Extract grocery items from the following input.
 Return ONLY a JSON array of objects with these fields:
@@ -391,8 +597,7 @@ Return ONLY valid JSON, no markdown.`
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     })
 
-    const raw =
-      response.text?.replace(/```json\n?|\n?```/g, '').trim() || '[]'
+    const raw = response.text?.replace(/```json\n?|\n?```/g, '').trim() || '[]'
     const parsed: Array<{
       name: string
       qty: number
@@ -403,11 +608,10 @@ Return ONLY valid JSON, no markdown.`
 
     if (!Array.isArray(parsed) || parsed.length === 0) {
       return twiml(
-        'Non sono riuscito a riconoscere nessun prodotto nel tuo messaggio. Prova a scrivere qualcosa come "2 kg pollo, 6 uova, 1 litro latte".'
+        'Non sono riuscito a riconoscere nessun prodotto. Prova a scrivere qualcosa come "2 kg pollo, 6 uova, 1 litro latte".'
       )
     }
 
-    // Build rows for Supabase insert
     const rows = parsed.map((item) => {
       const expiry_date = item.estimated_expiry_days
         ? new Date(Date.now() + item.estimated_expiry_days * 86_400_000)
@@ -425,15 +629,11 @@ Return ONLY valid JSON, no markdown.`
       }
     })
 
-    const { error } = await supabase
-      .from('inventory_items')
-      .insert(rows)
+    const { error } = await supabase.from('inventory_items').insert(rows)
 
     if (error) {
       console.error('Insert error:', error)
-      return twiml(
-        'Non sono riuscito a salvare i prodotti. Riprova tra poco.'
-      )
+      return twiml('Non sono riuscito a salvare i prodotti. Riprova tra poco.')
     }
 
     return twiml(formatAddedItems(parsed))
