@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { WhatsAppLinkForm } from './whatsapp-link-form'
 
 function getInitials(name: string | null, email: string | undefined): string {
   if (name) {
@@ -37,7 +38,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('full_name, household_id')
+    .select('full_name, household_id, phone_number')
     .eq('id', user.id)
     .single()
 
@@ -155,6 +156,9 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* WhatsApp Integration */}
+      <WhatsAppLinkForm phoneNumber={profile.phone_number ?? null} />
 
       {/* Actions */}
       <div className="flex flex-col gap-3">
