@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { calculateExpiryDate, defaultZone, normalizeZone } from '@/lib/shelf-life'
 
 async function getAuthAndHousehold() {
   const supabase = await createClient()
@@ -35,26 +36,15 @@ export async function addItem(formData: FormData) {
   const quantity = Number(formData.get('quantity')) || 1
   const unit = (formData.get('unit') as string) || 'pz'
   const category = (formData.get('category') as string) || 'General'
-  const expiry_date = formData.get('expiry_date') as string | null
+  const manualExpiry = formData.get('expiry_date') as string | null
 
-  const cat = category.toLowerCase()
-  const zone = cat === 'frozen' ? 'freezer'
-    : ['carbohydrate', 'condiment'].includes(cat) ? 'pantry'
-    : 'fridge'
+  const zone = defaultZone(category)
+  // Use manual expiry if provided, otherwise calculate from shelf-life
+  const expiry_date = manualExpiry || calculateExpiryDate(name, category, zone)
 
   const { data: inserted, error } = await supabase
     .from('inventory_items')
-    .insert([
-      {
-        household_id: householdId,
-        name,
-        quantity,
-        unit,
-        category,
-        zone,
-        expiry_date: expiry_date || null,
-      },
-    ])
+    .insert([{ household_id: householdId, name, quantity, unit, category, zone, expiry_date }])
     .select()
 
   if (error) {
@@ -82,24 +72,17 @@ export async function addItems(
   const { supabase, householdId } = await getAuthAndHousehold()
 
   const rows = items.map((item) => {
-    const expiry_date = item.expiry_days
-      ? new Date(Date.now() + item.expiry_days * 86400000)
-          .toISOString()
-          .split('T')[0]
-      : null
-
-    // Default zone based on food category
-    const cat = (item.category || 'General').toLowerCase()
-    const zone = cat === 'frozen' ? 'freezer'
-      : ['carbohydrate', 'condiment'].includes(cat) ? 'pantry'
-      : 'fridge'
+    const category = item.category || 'General'
+    const zone = defaultZone(category)
+    // Always use shelf-life map — ignore AI's expiry_days estimate
+    const expiry_date = calculateExpiryDate(item.name, category, zone)
 
     return {
       household_id: householdId,
       name: item.name,
       quantity: item.quantity || 1,
       unit: item.unit || 'pz',
-      category: item.category || 'General',
+      category,
       zone,
       expiry_date,
     }
@@ -168,19 +151,19 @@ export async function useItem(formData: FormData) {
 
 export async function moveItem(id: string, targetZone: string) {
   const { supabase } = await getAuthAndHousehold()
-  const { calculateExpiryDate, normalizeZone } = await import('@/lib/shelf-life')
 
   const zone = normalizeZone(targetZone)
 
-  // Get current item's food category for shelf-life calculation
+  // Get item name and category for shelf-life calculation
   const { data: item } = await supabase
     .from('inventory_items')
-    .select('category')
+    .select('name, category')
     .eq('id', id)
     .single()
 
-  const foodCategory = item?.category || 'General'
-  const newExpiry = calculateExpiryDate(foodCategory, zone)
+  const itemName = item?.name || ''
+  const category = item?.category || 'General'
+  const newExpiry = calculateExpiryDate(itemName, category, zone)
 
   const { error } = await supabase
     .from('inventory_items')

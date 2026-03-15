@@ -285,16 +285,20 @@ Messaggio utente: ${message}`
     try {
       const parsed = JSON.parse(addMatch[1])
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const rows = parsed.map((item: { name: string; qty: number; unit: string; estimated_expiry_days?: number; category?: string }) => ({
-          household_id: householdId,
-          name: item.name,
-          quantity: item.qty || 1,
-          unit: item.unit || 'pz',
-          category: item.category || 'General',
-          expiry_date: item.estimated_expiry_days
-            ? new Date(Date.now() + item.estimated_expiry_days * 86_400_000).toISOString().split('T')[0]
-            : null,
-        }))
+        const { calculateExpiryDate: calcExpiry, defaultZone: defZone } = await import('@/lib/shelf-life')
+        const rows = parsed.map((item: { name: string; qty: number; unit: string; category?: string }) => {
+          const category = item.category || 'General'
+          const zone = defZone(category)
+          return {
+            household_id: householdId,
+            name: item.name,
+            quantity: item.qty || 1,
+            unit: item.unit || 'pz',
+            category,
+            zone,
+            expiry_date: calcExpiry(item.name, category, zone),
+          }
+        })
         await supabase.from('inventory_items').insert(rows)
 
         // Notify family
