@@ -388,7 +388,8 @@ export async function POST(request: Request) {
 
     return twiml(reply)
   } catch (error) {
-    console.error('WhatsApp webhook error:', error)
-    return twiml('Si è verificato un errore. Riprova tra qualche istante.')
+    const errMsg = error instanceof Error ? error.message : String(error)
+    console.error('WhatsApp webhook error:', errMsg, error)
+    return twiml(`Errore: ${errMsg.substring(0, 200)}`)
   }
 }
