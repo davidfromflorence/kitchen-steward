@@ -4,6 +4,20 @@ import { GoogleGenAI } from '@google/genai'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! })
 
+// Average cost per food category (€/unit estimate for Italy)
+const AVG_COST: Record<string, number> = {
+  Protein: 5.0,
+  Vegetable: 2.0,
+  Fruit: 2.5,
+  Dairy: 2.0,
+  Carbohydrate: 1.5,
+  Condiment: 3.0,
+  General: 2.5,
+}
+
+// Average kg CO2 saved per food item not wasted
+const CO2_PER_ITEM = 2.5
+
 function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,7 +53,6 @@ export async function GET(request: Request) {
 
   const supabase = getSupabaseAdmin()
 
-  // Get all households with WhatsApp users
   const { data: users } = await supabase
     .from('users')
     .select('id, whatsapp_number, household_id, full_name')
@@ -50,7 +63,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'No users', sent: 0 })
   }
 
-  // Group by household to avoid duplicate reports
   const households = new Map<string, typeof users>()
   for (const u of users) {
     if (!households.has(u.household_id)) households.set(u.household_id, [])
@@ -61,7 +73,7 @@ export async function GET(request: Request) {
   const oneWeekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
 
   for (const [householdId, members] of households) {
-    // Get current inventory
+    // Current inventory
     const { data: inventory } = await supabase
       .from('inventory_items')
       .select('name, quantity, unit, category, expiry_date, created_at')
@@ -71,7 +83,6 @@ export async function GET(request: Request) {
     const totalItems = items.length
     const addedThisWeek = items.filter(i => i.created_at >= oneWeekAgo).length
 
-    // Count expired items
     const today = new Date().toISOString().split('T')[0]
     const expired = items.filter(i => i.expiry_date && i.expiry_date < today).length
     const expiringSoon = items.filter(i => {
@@ -80,56 +91,79 @@ export async function GET(request: Request) {
       return days >= 0 && days <= 3
     }).length
 
-    // Get shopping list stats
-    const { data: shoppingItems } = await supabase
-      .from('shopping_list_items')
-      .select('checked')
-      .eq('household_id', householdId)
+    // Items that DIDN'T expire (managed well) = items with expiry that are still good
+    const managedWell = items.filter(i => {
+      if (!i.expiry_date) return false
+      return i.expiry_date >= today
+    }).length
 
-    const shoppingTotal = shoppingItems?.length || 0
-    const shoppingChecked = shoppingItems?.filter(i => i.checked).length || 0
+    // Estimate savings: managed items × avg cost per category
+    const moneySaved = items
+      .filter(i => i.expiry_date && i.expiry_date >= today)
+      .reduce((sum, i) => sum + (AVG_COST[i.category] || 2.5) * i.quantity, 0)
 
-    // Generate AI weekly tip
-    const inventoryList = items.map(i => i.name).join(', ')
-    let weeklyTip = ''
+    const co2Saved = managedWell * CO2_PER_ITEM
+    const mealsEquivalent = Math.round(managedWell / 3)
+
+    // AI motivational message based on their performance
+    let aiMessage = ''
     try {
+      const performance = expired === 0 ? 'eccellente — zero sprechi!' :
+        expired <= 2 ? 'buona — quasi zero sprechi' :
+        'da migliorare — qualche prodotto è scaduto'
+
       const result = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: [{
           role: 'user',
           parts: [{
-            text: `Dato questo frigo: ${inventoryList || 'vuoto'}. Dai UN consiglio pratico per la prossima settimana (menu planning, conservazione, o anti-spreco). Max 2 frasi, in italiano.`,
+            text: `Sei Kitchen Steward. La famiglia ha ${totalItems} prodotti nel frigo, ${expired} scaduti, ${managedWell} gestiti bene. Performance: ${performance}. Hanno risparmiato circa €${moneySaved.toFixed(0)} e ${co2Saved.toFixed(1)}kg CO2. Scrivi un commento motivazionale breve (2 frasi max) in italiano, celebrando i risultati o incoraggiando a fare meglio. Tono amichevole, usa emoji. No formattazione markdown.`,
           }],
         }],
       })
-      weeklyTip = result.text?.trim() || ''
+      aiMessage = result.text?.trim() || ''
     } catch {
-      // Skip tip if Gemini fails
+      // Skip if Gemini fails
     }
 
-    // Build summary
     const memberNames = members.map(m => m.full_name?.split(' ')[0] || '').filter(Boolean).join(', ')
 
-    let summary = `📊 *Report settimanale — Kitchen Steward*\n\n`
-    summary += `👨‍👩‍👧 Famiglia: ${memberNames}\n\n`
-    summary += `🧊 *Frigo:* ${totalItems} prodotti`
+    let summary = `📊 *Report settimanale — Kitchen Steward*\n`
+    summary += `👨‍👩‍👧 ${memberNames}\n\n`
+
+    // Savings hero section
+    summary += `💰 *I vostri risparmi questa settimana:*\n`
+    summary += `  💶 ~€${moneySaved.toFixed(0)} di cibo salvato dallo spreco\n`
+    summary += `  🌍 ~${co2Saved.toFixed(1)}kg CO₂ risparmiati\n`
+    summary += `  🍽️ ~${mealsEquivalent} pasti equivalenti salvati\n\n`
+
+    // Fridge status
+    summary += `🧊 *Stato frigo:* ${totalItems} prodotti`
     if (addedThisWeek > 0) summary += ` (+${addedThisWeek} questa settimana)`
     summary += '\n'
-    if (expired > 0) summary += `🔴 ${expired} prodotti scaduti — controllali!\n`
-    if (expiringSoon > 0) summary += `🟡 ${expiringSoon} in scadenza nei prossimi 3 giorni\n`
-    if (expired === 0 && expiringSoon === 0) summary += `✅ Nessuna scadenza urgente!\n`
 
-    summary += `\n🛒 *Spesa:* ${shoppingTotal} articoli`
-    if (shoppingChecked > 0) summary += ` (${shoppingChecked} completati)`
-    summary += '\n'
-
-    if (weeklyTip) {
-      summary += `\n💡 *Consiglio della settimana:*\n${weeklyTip}\n`
+    if (expired > 0) {
+      summary += `🔴 ${expired} scaduti — da controllare\n`
+    }
+    if (expiringSoon > 0) {
+      summary += `🟡 ${expiringSoon} in scadenza nei prossimi 3 giorni\n`
+    }
+    if (expired === 0) {
+      summary += `✅ Zero sprechi questa settimana! 🎉\n`
     }
 
-    summary += `\n⬇️ *Scegli:*\n1️⃣ Genera spesa per la settimana\n2️⃣ Suggeriscimi un menu\n3️⃣ Mostra il frigo`
+    // Score
+    const score = expired === 0 ? '⭐⭐⭐⭐⭐' :
+      expired <= 1 ? '⭐⭐⭐⭐' :
+      expired <= 3 ? '⭐⭐⭐' : '⭐⭐'
+    summary += `\n🏆 *Punteggio anti-spreco:* ${score}\n`
 
-    // Send to all household members
+    if (aiMessage) {
+      summary += `\n${aiMessage}\n`
+    }
+
+    summary += `\n⬇️ *Scegli:*\n1️⃣ Pianifica i pasti della settimana\n2️⃣ Genera la lista della spesa\n3️⃣ Mostra il frigo`
+
     for (const member of members) {
       const ok = await sendWhatsApp(member.whatsapp_number, summary)
       if (ok) sent++
