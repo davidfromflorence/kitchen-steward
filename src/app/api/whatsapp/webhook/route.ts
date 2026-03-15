@@ -38,11 +38,17 @@ Scrivi qualsiasi lista di prodotti e la aggiungo al frigo.
 
 Comandi speciali:
 • *lista* o *frigo* — mostra il contenuto del frigo
+• *scadenze* — prodotti in scadenza nei prossimi 3 giorni
 • *ricetta* — suggerisci una ricetta con quello che hai
+• *ricetta veloce* — ricetta in max 15 minuti
+• *ricetta per 4* — ricetta per 4 persone
+• *spesa* — mostra la lista della spesa
+• *curiosità* — fatto curioso sul cibo anti-spreco
+• *elimina [prodotto]* — rimuovi un prodotto dal frigo
 • *aiuto* o *help* — mostra questo messaggio`
 
 // ---------------------------------------------------------------------------
-// GET — webhook verification (Twilio doesn't strictly require it, but safe)
+// GET — webhook verification
 // ---------------------------------------------------------------------------
 
 export async function GET() {
@@ -95,8 +101,24 @@ export async function POST(request: Request) {
       return await handleInventoryList(supabase, householdId)
     }
 
-    if (command === 'ricetta' || command === 'recipe') {
-      return await handleRecipeSuggestion(supabase, householdId)
+    if (command === 'scadenze') {
+      return await handleExpiring(supabase, householdId)
+    }
+
+    if (command.startsWith('ricetta')) {
+      return await handleRecipeSuggestion(supabase, householdId, command)
+    }
+
+    if (command === 'spesa') {
+      return await handleShoppingList(supabase, householdId)
+    }
+
+    if (command === 'curiosità' || command === 'curiosita') {
+      return await handleFoodFact()
+    }
+
+    if (command.startsWith('elimina ')) {
+      return await handleDeleteItem(supabase, householdId, body.slice(8).trim())
     }
 
     // Default: treat as grocery text to parse & add
@@ -113,11 +135,8 @@ export async function POST(request: Request) {
 // Command handlers
 // ---------------------------------------------------------------------------
 
-async function handleInventoryList(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  householdId: string
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleInventoryList(supabase: any, householdId: string) {
   const { data: items, error } = await supabase
     .from('inventory_items')
     .select('name, quantity, unit, category, expiry_date')
@@ -132,11 +151,41 @@ async function handleInventoryList(
   return twiml(formatInventoryList(items ?? []))
 }
 
-async function handleRecipeSuggestion(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  householdId: string
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleExpiring(supabase: any, householdId: string) {
+  const threeDaysFromNow = new Date(Date.now() + 3 * 86_400_000)
+    .toISOString()
+    .split('T')[0]
+
+  const { data: items, error } = await supabase
+    .from('inventory_items')
+    .select('name, quantity, unit, category, expiry_date')
+    .eq('household_id', householdId)
+    .lte('expiry_date', threeDaysFromNow)
+    .order('expiry_date', { ascending: true })
+
+  if (error) {
+    return twiml('Non riesco a controllare le scadenze in questo momento.')
+  }
+
+  if (!items || items.length === 0) {
+    return twiml('✅ Nessun prodotto in scadenza nei prossimi 3 giorni! Ottimo lavoro.')
+  }
+
+  const lines = items.map((i: { name: string; quantity: number; unit: string; expiry_date: string }) => {
+    const days = Math.ceil(
+      (new Date(i.expiry_date).getTime() - Date.now()) / 86_400_000
+    )
+    const emoji = days <= 0 ? '🔴' : days === 1 ? '🟠' : '🟡'
+    const label = days <= 0 ? 'SCADUTO' : days === 1 ? 'scade domani' : `scade tra ${days}g`
+    return `${emoji} ${i.quantity} ${i.unit} ${i.name} — ${label}`
+  })
+
+  return twiml(`⏰ *Prodotti in scadenza*\n\n${lines.join('\n')}\n\nScrivi *ricetta* per usarli!`)
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleRecipeSuggestion(supabase: any, householdId: string, command: string) {
   const { data: items, error } = await supabase
     .from('inventory_items')
     .select('name, quantity, unit, category, expiry_date')
@@ -149,6 +198,14 @@ async function handleRecipeSuggestion(
     )
   }
 
+  // Parse optional modifiers from command
+  const timeMatch = command.match(/(\d+)\s*min/)
+  const servingsMatch = command.match(/per\s*(\d+)/)
+  const isQuick = command.includes('veloce') || command.includes('rapida')
+
+  const maxTime = timeMatch ? parseInt(timeMatch[1]) : isQuick ? 15 : null
+  const servings = servingsMatch ? parseInt(servingsMatch[1]) : 2
+
   const ingredientsList = items
     .map((i: { name: string; quantity: number; unit: string; expiry_date: string | null }) => {
       const daysLeft = i.expiry_date
@@ -160,18 +217,28 @@ async function handleRecipeSuggestion(
     })
     .join('\n')
 
-  const prompt = `Sei uno chef anti-spreco italiano. Dati questi ingredienti nel frigo, suggerisci UNA ricetta veloce che usi prioritariamente gli ingredienti che scadono prima.
+  const timeConstraint = maxTime ? `\nTempo massimo di preparazione: ${maxTime} minuti.` : ''
+
+  const prompt = `Sei uno chef anti-spreco italiano creativo e simpatico. Dati questi ingredienti nel frigo, suggerisci UNA ricetta per ${servings} persone che usi prioritariamente gli ingredienti che scadono prima.
 
 Ingredienti:
 ${ingredientsList}
+${timeConstraint}
 
-Rispondi in italiano con:
-- Nome della ricetta
-- Tempo di preparazione
-- Passi veloci (max 5)
-- Perché questa ricetta riduce lo spreco
+Rispondi in italiano con questo formato:
+🍽️ *[Nome ricetta]*
+⏱️ [tempo preparazione]
+👥 ${servings} persone
 
-Rispondi in testo semplice (no JSON, no markdown), adatto a WhatsApp.`
+*Ingredienti:*
+[lista puntata ingredienti con quantità]
+
+*Preparazione:*
+[passi numerati, max 6]
+
+♻️ *Anti-spreco:* [una riga su perché questa ricetta riduce lo spreco]
+
+Usa emoji e formattazione WhatsApp (*grassetto*). Testo semplice, no JSON, no markdown con backtick.`
 
   try {
     const response = await ai.models.generateContent({
@@ -181,11 +248,123 @@ Rispondi in testo semplice (no JSON, no markdown), adatto a WhatsApp.`
 
     const recipeText =
       response.text?.trim() || 'Non sono riuscito a generare una ricetta.'
-    return twiml(`🍳 *Ricetta suggerita*\n\n${recipeText}`)
+    return twiml(recipeText)
   } catch (err) {
     console.error('Recipe generation error:', err)
     return twiml('Non riesco a generare una ricetta in questo momento. Riprova!')
   }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleShoppingList(supabase: any, householdId: string) {
+  const { data: items, error } = await supabase
+    .from('shopping_list_items')
+    .select('name, category, notes, checked')
+    .eq('household_id', householdId)
+    .order('checked', { ascending: true })
+    .order('category', { ascending: true })
+
+  if (error) {
+    return twiml('Non riesco a recuperare la lista della spesa.')
+  }
+
+  if (!items || items.length === 0) {
+    return twiml('🛒 La lista della spesa è vuota!')
+  }
+
+  const unchecked = items.filter((i: { checked: boolean }) => !i.checked)
+  const checked = items.filter((i: { checked: boolean }) => i.checked)
+
+  let msg = '🛒 *Lista della spesa*\n\n'
+
+  if (unchecked.length > 0) {
+    msg += unchecked
+      .map((i: { name: string; notes?: string }) =>
+        `• ${i.name}${i.notes ? ` (${i.notes})` : ''}`
+      )
+      .join('\n')
+  }
+
+  if (checked.length > 0) {
+    msg += `\n\n✅ *Già presi (${checked.length}):*\n`
+    msg += checked
+      .map((i: { name: string }) => `  ~${i.name}~`)
+      .join('\n')
+  }
+
+  return twiml(msg)
+}
+
+async function handleFoodFact() {
+  const prompt = `Genera UN fatto curioso e utile sul cibo, la conservazione degli alimenti, o lo spreco alimentare.
+Deve essere:
+- Sorprendente e interessante
+- Pratico (con un consiglio applicabile)
+- In italiano
+- Breve (max 3 frasi)
+
+Formato:
+💡 *Lo sapevi?*
+[fatto curioso]
+
+🌱 *Consiglio:* [consiglio pratico collegato]
+
+Usa formattazione WhatsApp. No JSON, no backtick.`
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    })
+
+    return twiml(response.text?.trim() || 'Non riesco a generare una curiosità in questo momento.')
+  } catch (err) {
+    console.error('Food fact error:', err)
+    return twiml('Non riesco a generare una curiosità in questo momento.')
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleDeleteItem(supabase: any, householdId: string, itemName: string) {
+  if (!itemName) {
+    return twiml('Scrivi *elimina* seguito dal nome del prodotto. Es: *elimina latte*')
+  }
+
+  // Fuzzy match: find items whose name contains the search term
+  const { data: items, error } = await supabase
+    .from('inventory_items')
+    .select('id, name, quantity, unit')
+    .eq('household_id', householdId)
+    .ilike('name', `%${itemName}%`)
+
+  if (error) {
+    return twiml('Errore nella ricerca del prodotto.')
+  }
+
+  if (!items || items.length === 0) {
+    return twiml(`Non ho trovato "${itemName}" nel tuo frigo.`)
+  }
+
+  // Delete all matching items
+  const ids = items.map((i: { id: string }) => i.id)
+  const { error: deleteError } = await supabase
+    .from('inventory_items')
+    .delete()
+    .in('id', ids)
+
+  if (deleteError) {
+    return twiml('Non sono riuscito a eliminare il prodotto. Riprova.')
+  }
+
+  if (items.length === 1) {
+    const i = items[0]
+    return twiml(`🗑️ Rimosso: ${i.quantity} ${i.unit} ${i.name}`)
+  }
+
+  const lines = items.map((i: { name: string; quantity: number; unit: string }) =>
+    `  • ${i.quantity} ${i.unit} ${i.name}`
+  )
+  return twiml(`🗑️ Rimossi ${items.length} prodotti:\n${lines.join('\n')}`)
 }
 
 async function handleAddItems(
