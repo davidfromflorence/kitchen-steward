@@ -273,6 +273,14 @@ export async function POST(request: Request) {
     const from = (formData.get('From') as string | null) ?? ''
     const numMedia = parseInt((formData.get('NumMedia') as string) || '0', 10)
 
+    console.log('[webhook]', { from, body: body.substring(0, 50), numMedia })
+    if (numMedia > 0) {
+      console.log('[webhook media]', {
+        type: formData.get('MediaContentType0'),
+        url: formData.get('MediaUrl0'),
+      })
+    }
+
     const phoneNumber = parseWhatsAppNumber(from)
     const supabase = getSupabaseAdmin()
 

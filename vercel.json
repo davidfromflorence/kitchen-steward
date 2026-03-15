@@ -1,4 +1,12 @@
 {
+  "functions": {
+    "src/app/api/whatsapp/webhook/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/daily-digest/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/daily-digest",
