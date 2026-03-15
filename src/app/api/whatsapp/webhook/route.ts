@@ -158,19 +158,27 @@ interface FridgeContext {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function loadContext(supabase: any, householdId: string, userId: string): Promise<FridgeContext> {
-  const [profileRes, inventoryRes, shoppingRes, historyRes, membersRes] = await Promise.all([
+  const [profileRes, inventoryRes, shoppingRes, membersRes] = await Promise.all([
     supabase.from('users').select('full_name').eq('id', userId).single(),
     supabase.from('inventory_items').select('name, quantity, unit, category, expiry_date').eq('household_id', householdId).order('expiry_date', { ascending: true, nullsFirst: false }),
     supabase.from('shopping_list_items').select('name').eq('household_id', householdId).eq('checked', false),
-    supabase.from('wa_messages').select('role, content').eq('household_id', householdId).order('created_at', { ascending: false }).limit(10),
     supabase.from('users').select('full_name').eq('household_id', householdId),
   ])
+
+  // Conversation history — may not exist yet, that's OK
+  let historyData: Array<{ role: string; content: string }> = []
+  try {
+    const { data } = await supabase.from('wa_messages').select('role, content').eq('household_id', householdId).order('created_at', { ascending: false }).limit(10)
+    historyData = data || []
+  } catch {
+    // Table doesn't exist yet — skip
+  }
 
   return {
     userName: profileRes.data?.full_name?.split(' ')[0] || 'amico',
     inventory: inventoryRes.data || [],
     shoppingList: shoppingRes.data || [],
-    conversationHistory: (historyRes.data || []).reverse(),
+    conversationHistory: historyData.reverse(),
     householdMembers: membersRes.data || [],
   }
 }
@@ -488,26 +496,16 @@ export async function POST(request: Request) {
       return twiml('Completa la configurazione su Kitchen Steward prima di usare la chat.')
     }
 
-    // Handle media
+    // Handle media — instant responses (free plan can't process media in time)
     if (numMedia > 0) {
       const mediaType = (formData.get('MediaContentType0') as string) || ''
-      const mediaUrl = formData.get('MediaUrl0') as string | null
 
-      if (mediaType.startsWith('audio/') && mediaUrl) {
-        const transcribed = await transcribeAudio(mediaUrl, mediaType)
-        if (transcribed) {
-          body = transcribed
-        } else {
-          return twiml('🎤 Non ho capito il vocale. Puoi riprovare o scriverlo?')
-        }
-      } else if (mediaType.startsWith('image/') && mediaUrl) {
-        try {
-          const result = await handleReceiptPhoto(supabase, user.household_id, mediaUrl, mediaType, body)
-          return twiml(result)
-        } catch (imgErr) {
-          console.error('Image error:', imgErr)
-          return twiml('📷 Non sono riuscito a elaborare la foto. Prova a scrivere i prodotti a mano!')
-        }
+      if (mediaType.startsWith('audio/')) {
+        return twiml('🎤 I messaggi vocali non sono ancora supportati.\n\nScrivimi il messaggio a testo! Es: "Ho comprato pollo, uova e latte"\n\n⬇️ *Scegli:*\n1️⃣ Mostra il frigo\n2️⃣ Cosa cucino?\n3️⃣ Pianifica i pasti')
+      }
+
+      if (mediaType.startsWith('image/')) {
+        return twiml('📷 Le foto non sono ancora supportate.\n\nScrivimi cosa hai comprato! Es: "2kg pollo, 6 uova, 1L latte, pane"\n\n⬇️ *Scegli:*\n1️⃣ Mostra il frigo\n2️⃣ Cosa cucino?\n3️⃣ Genera la spesa')
       }
     }
 
