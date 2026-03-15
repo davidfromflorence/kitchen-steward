@@ -340,7 +340,7 @@ export async function POST(request: Request) {
           return twiml('🎤 Non sono riuscito a capire il vocale. Puoi riprovare o scriverlo?')
         }
       } else if (mediaType.startsWith('image/') && mediaUrl) {
-        imageDescription = await extractFromImage(mediaUrl, mediaType, body)
+        imageDescription = await extractFromImage(mediaUrl, mediaType, body) ?? undefined
         if (!imageDescription && !body) {
           return twiml('📷 Non sono riuscito a capire l\'immagine. Prova ad aggiungere una descrizione!')
         }
