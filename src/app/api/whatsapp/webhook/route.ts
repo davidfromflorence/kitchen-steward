@@ -84,7 +84,9 @@ async function transcribeAudio(mediaUrl: string, mimeType: string): Promise<stri
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleReceiptPhoto(supabase: any, householdId: string, mediaUrl: string, mimeType: string, caption: string): Promise<string> {
+  console.log('[image] downloading from:', mediaUrl, 'type:', mimeType)
   const res = await fetch(mediaUrl, { headers: { Authorization: twilioAuth() } })
+  console.log('[image] download status:', res.status)
   if (!res.ok) return '📷 Non riesco a scaricare l\'immagine. Riprova.'
 
   const buf = await res.arrayBuffer()
@@ -499,9 +501,13 @@ export async function POST(request: Request) {
           return twiml('🎤 Non ho capito il vocale. Puoi riprovare o scriverlo?')
         }
       } else if (mediaType.startsWith('image/') && mediaUrl) {
-        // Handle image directly — one Gemini call, extract + save
-        const result = await handleReceiptPhoto(supabase, user.household_id, mediaUrl, mediaType, body)
-        return twiml(result)
+        try {
+          const result = await handleReceiptPhoto(supabase, user.household_id, mediaUrl, mediaType, body)
+          return twiml(result)
+        } catch (imgErr) {
+          console.error('Image error:', imgErr)
+          return twiml('📷 Non sono riuscito a elaborare la foto. Prova a scrivere i prodotti a mano!')
+        }
       }
     }
 
