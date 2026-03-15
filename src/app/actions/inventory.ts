@@ -152,3 +152,29 @@ export async function useItem(formData: FormData) {
   revalidateAll()
   return { success: true }
 }
+
+export async function moveItem(id: string, zone: string) {
+  const { supabase } = await getAuthAndHousehold()
+
+  const zoneToCategory: Record<string, string> = {
+    Fridge: 'Dairy',
+    Freezer: 'Frozen',
+    Pantry: 'General',
+  }
+
+  const category = zoneToCategory[zone]
+  if (!category) return { error: 'Invalid zone' }
+
+  const { error } = await supabase
+    .from('inventory_items')
+    .update({ category })
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error moving item:', error)
+    return { error: error.message }
+  }
+
+  revalidateAll()
+  return { success: true }
+}

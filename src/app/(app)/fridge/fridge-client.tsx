@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Search,
@@ -12,8 +12,9 @@ import {
   Refrigerator,
   Snowflake,
   Archive,
+  GripVertical,
 } from 'lucide-react'
-import { deleteItem, useItem } from '@/app/actions/inventory'
+import { deleteItem, useItem, moveItem } from '@/app/actions/inventory'
 import AddItemModal from './add-item-modal'
 
 interface InventoryItem {
@@ -26,16 +27,14 @@ interface InventoryItem {
 }
 
 const CATEGORY_TABS = [
-  { label: 'All', value: 'All' },
-  { label: 'Produce', value: 'Produce' },
-  { label: 'Dairy & Eggs', value: 'Dairy & Eggs' },
-  { label: 'Proteins', value: 'Proteins' },
-  { label: 'Pantry', value: 'Pantry' },
-  { label: 'Frozen', value: 'Frozen' },
-  { label: 'Beverages', value: 'Beverages' },
+  { label: 'Tutti', value: 'All' },
+  { label: '🥬 Verdura', value: 'Produce' },
+  { label: '🧀 Latticini', value: 'Dairy & Eggs' },
+  { label: '🥩 Proteine', value: 'Proteins' },
+  { label: '🫙 Dispensa', value: 'Pantry' },
+  { label: '🧊 Surgelati', value: 'Frozen' },
 ] as const
 
-/** Map raw DB categories to display tab categories */
 function mapCategory(raw: string): string {
   const lower = raw.toLowerCase()
   if (lower === 'vegetable' || lower === 'fruit') return 'Produce'
@@ -43,142 +42,73 @@ function mapCategory(raw: string): string {
   if (lower === 'protein') return 'Proteins'
   if (lower === 'carbohydrate' || lower === 'condiment') return 'Pantry'
   if (lower === 'frozen') return 'Frozen'
-  if (lower === 'beverage' || lower === 'beverages') return 'Beverages'
-  // "General" and anything else
   return 'Other'
 }
 
-/** Gradient class for the card image placeholder based on category */
 function categoryGradient(raw: string): string {
   const mapped = mapCategory(raw)
   switch (mapped) {
-    case 'Produce':
-      return 'from-emerald-300 to-green-500'
-    case 'Dairy & Eggs':
-      return 'from-sky-200 to-blue-400'
-    case 'Proteins':
-      return 'from-amber-300 to-orange-500'
-    case 'Pantry':
-      return 'from-yellow-200 to-amber-400'
-    case 'Frozen':
-      return 'from-cyan-200 to-sky-400'
-    case 'Beverages':
-      return 'from-violet-300 to-purple-500'
-    default:
-      return 'from-slate-200 to-slate-400'
+    case 'Produce': return 'from-emerald-300 to-green-500'
+    case 'Dairy & Eggs': return 'from-sky-200 to-blue-400'
+    case 'Proteins': return 'from-amber-300 to-orange-500'
+    case 'Pantry': return 'from-yellow-200 to-amber-400'
+    case 'Frozen': return 'from-cyan-200 to-sky-400'
+    default: return 'from-slate-200 to-slate-400'
   }
 }
 
-/** Emoji placeholder for each category */
 function categoryEmoji(raw: string): string {
   const mapped = mapCategory(raw)
   switch (mapped) {
-    case 'Produce':
-      return '🥬'
-    case 'Dairy & Eggs':
-      return '🥛'
-    case 'Proteins':
-      return '🥩'
-    case 'Pantry':
-      return '🫙'
-    case 'Frozen':
-      return '🧊'
-    case 'Beverages':
-      return '🥤'
-    default:
-      return '🍽️'
+    case 'Produce': return '🥬'
+    case 'Dairy & Eggs': return '🥛'
+    case 'Proteins': return '🥩'
+    case 'Pantry': return '🫙'
+    case 'Frozen': return '🧊'
+    default: return '🍽️'
   }
 }
 
 function daysUntilExpiry(expiryDate: string): number {
-  return Math.ceil(
-    (new Date(expiryDate).getTime() - Date.now()) / 86400000
-  )
+  return Math.ceil((new Date(expiryDate).getTime() - Date.now()) / 86400000)
 }
 
 function expiryBadge(expiryDate: string) {
   const days = daysUntilExpiry(expiryDate)
-
-  if (days <= 0) {
-    return {
-      label: 'Expired',
-      className: 'bg-red-100 text-red-700',
-    }
-  }
-
-  const dateStr = new Date(expiryDate).toLocaleDateString('en-GB', {
+  const dateStr = new Date(expiryDate).toLocaleDateString('it-IT', {
     day: 'numeric',
     month: 'short',
   })
 
-  if (days <= 2) {
-    return {
-      label: `Exp. ${dateStr}`,
-      className: 'bg-red-100 text-red-700',
-    }
-  }
-
-  if (days <= 5) {
-    return {
-      label: `Exp. ${dateStr}`,
-      className: 'bg-amber-100 text-amber-700',
-    }
-  }
-
-  return {
-    label: `Exp. ${dateStr}`,
-    className: 'bg-slate-100 text-slate-600',
-  }
+  if (days <= 0) return { label: 'Scaduto', className: 'bg-red-100 text-red-700' }
+  if (days <= 2) return { label: `Scade ${dateStr}`, className: 'bg-red-100 text-red-700' }
+  if (days <= 5) return { label: `Scade ${dateStr}`, className: 'bg-amber-100 text-amber-700' }
+  return { label: `Scade ${dateStr}`, className: 'bg-slate-100 text-slate-600' }
 }
 
-/* ── Kitchen View helpers ─────────────────────────────────── */
-
+/* Kitchen View */
 type KitchenZone = 'Fridge' | 'Freezer' | 'Pantry'
 
 function mapToZone(category: string): KitchenZone {
   const lower = category.toLowerCase()
   if (lower === 'frozen') return 'Freezer'
-  if (['dairy', 'protein', 'vegetable', 'fruit'].includes(lower))
-    return 'Fridge'
-  return 'Pantry' // carbohydrate, condiment, general, beverage, etc.
+  if (['dairy', 'protein', 'vegetable', 'fruit'].includes(lower)) return 'Fridge'
+  return 'Pantry'
 }
 
-const ZONE_CONFIG: Record<
-  KitchenZone,
-  {
-    icon: typeof Refrigerator
-    headerBg: string
-    headerText: string
-    borderColor: string
-    emptyText: string
-  }
-> = {
-  Fridge: {
-    icon: Refrigerator,
-    headerBg: 'bg-sky-100',
-    headerText: 'text-sky-800',
-    borderColor: 'border-sky-200',
-    emptyText: 'Empty',
-  },
-  Freezer: {
-    icon: Snowflake,
-    headerBg: 'bg-cyan-100',
-    headerText: 'text-indigo-800',
-    borderColor: 'border-cyan-200',
-    emptyText: 'Empty',
-  },
-  Pantry: {
-    icon: Archive,
-    headerBg: 'bg-amber-100',
-    headerText: 'text-amber-800',
-    borderColor: 'border-amber-200',
-    emptyText: 'Empty',
-  },
+const ZONE_CONFIG: Record<KitchenZone, {
+  icon: typeof Refrigerator
+  headerBg: string
+  headerText: string
+  borderColor: string
+  bodyBg: string
+}> = {
+  Fridge: { icon: Refrigerator, headerBg: 'bg-sky-100', headerText: 'text-sky-800', borderColor: 'border-sky-200', bodyBg: 'bg-sky-50/30' },
+  Freezer: { icon: Snowflake, headerBg: 'bg-cyan-100', headerText: 'text-cyan-800', borderColor: 'border-cyan-200', bodyBg: 'bg-cyan-50/30' },
+  Pantry: { icon: Archive, headerBg: 'bg-amber-100', headerText: 'text-amber-800', borderColor: 'border-amber-200', bodyBg: 'bg-amber-50/30' },
 }
 
 const ZONE_ORDER: KitchenZone[] = ['Fridge', 'Freezer', 'Pantry']
-
-/* ── Component ────────────────────────────────────────────── */
 
 export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   const searchParams = useSearchParams()
@@ -187,94 +117,100 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'kitchen'>('list')
+  const [dragItemId, setDragItemId] = useState<string | null>(null)
+  const [dragOverZone, setDragOverZone] = useState<KitchenZone | null>(null)
+  const touchStartRef = useRef<{ id: string; x: number; y: number } | null>(null)
+  const [moveModalItem, setMoveModalItem] = useState<InventoryItem | null>(null)
 
-  // Auto-open modal if ?add=true is in the URL
   useEffect(() => {
-    if (searchParams.get('add') === 'true') {
-      setShowAddModal(true)
-    }
+    if (searchParams.get('add') === 'true') setShowAddModal(true)
   }, [searchParams])
 
-  const freshCount = items.filter((i) => {
-    if (!i.expiry_date) return true
-    return daysUntilExpiry(i.expiry_date) > 0
-  }).length
+  const freshCount = items.filter((i) => !i.expiry_date || daysUntilExpiry(i.expiry_date) > 0).length
 
-  // Filter items — in kitchen view, category tabs are hidden so we only filter by search
   const filtered = items.filter((item) => {
-    // Search filter
-    if (search && !item.name.toLowerCase().includes(search.toLowerCase())) {
-      return false
-    }
-    // Category filter (list view only)
-    if (
-      viewMode === 'list' &&
-      activeTab !== 'All' &&
-      mapCategory(item.category) !== activeTab
-    ) {
-      return false
-    }
+    if (search && !item.name.toLowerCase().includes(search.toLowerCase())) return false
+    if (viewMode === 'list' && activeTab !== 'All' && mapCategory(item.category) !== activeTab) return false
     return true
   })
 
-  // Group items by zone for kitchen view
-  const groupedByZone: Record<KitchenZone, InventoryItem[]> = {
-    Fridge: [],
-    Freezer: [],
-    Pantry: [],
-  }
+  const groupedByZone: Record<KitchenZone, InventoryItem[]> = { Fridge: [], Freezer: [], Pantry: [] }
   if (viewMode === 'kitchen') {
-    for (const item of filtered) {
-      groupedByZone[mapToZone(item.category)].push(item)
-    }
+    for (const item of filtered) groupedByZone[mapToZone(item.category)].push(item)
   }
 
-  async function handleAction(
-    formData: FormData,
-    action: typeof deleteItem | typeof useItem
-  ) {
+  async function handleAction(formData: FormData, action: typeof deleteItem | typeof useItem) {
     const id = formData.get('id') as string
     setPendingId(id)
-    try {
-      await action(formData)
-    } finally {
-      setPendingId(null)
-    }
+    try { await action(formData) } finally { setPendingId(null) }
+  }
+
+  // Drag and drop handlers
+  function handleDragStart(e: React.DragEvent, itemId: string) {
+    setDragItemId(itemId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', itemId)
+  }
+
+  function handleDragOver(e: React.DragEvent, zone: KitchenZone) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverZone(zone)
+  }
+
+  function handleDragLeave() {
+    setDragOverZone(null)
+  }
+
+  async function handleDrop(e: React.DragEvent, zone: KitchenZone) {
+    e.preventDefault()
+    const itemId = e.dataTransfer.getData('text/plain')
+    setDragItemId(null)
+    setDragOverZone(null)
+    if (!itemId) return
+
+    const item = items.find(i => i.id === itemId)
+    if (!item || mapToZone(item.category) === zone) return
+
+    setPendingId(itemId)
+    try { await moveItem(itemId, zone) } finally { setPendingId(null) }
+  }
+
+  // Mobile: long press to move
+  async function handleMoveToZone(item: InventoryItem, zone: KitchenZone) {
+    setMoveModalItem(null)
+    if (mapToZone(item.category) === zone) return
+    setPendingId(item.id)
+    try { await moveItem(item.id, zone) } finally { setPendingId(null) }
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 pb-24">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">My Fridge</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Currently tracking{' '}
-            <span className="font-semibold text-olive-600">{freshCount}</span>{' '}
-            fresh ingredients
+          <h1 className="text-2xl font-bold text-slate-900">Il mio frigo</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            <span className="font-semibold text-olive-600">{freshCount}</span> ingredienti freschi
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search items..."
+              placeholder="Cerca..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 focus:border-transparent w-48 sm:w-56"
+              className="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 w-full sm:w-48"
             />
           </div>
-
-          {/* Add Item button */}
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 bg-olive-600 hover:bg-olive-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+            className="inline-flex items-center gap-1.5 bg-olive-600 hover:bg-olive-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm shrink-0"
           >
             <Plus className="w-4 h-4" />
-            Add Item
+            Aggiungi
           </button>
         </div>
       </div>
@@ -284,38 +220,32 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
         <button
           onClick={() => setViewMode('list')}
           className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            viewMode === 'list'
-              ? 'bg-olive-600 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            viewMode === 'list' ? 'bg-olive-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
           <LayoutGrid className="w-4 h-4" />
-          List View
+          Lista
         </button>
         <button
           onClick={() => setViewMode('kitchen')}
           className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            viewMode === 'kitchen'
-              ? 'bg-olive-600 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            viewMode === 'kitchen' ? 'bg-olive-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
           <Home className="w-4 h-4" />
-          Kitchen View
+          Cucina
         </button>
       </div>
 
-      {/* Category filter tabs — only in list view */}
+      {/* Category tabs — list view only */}
       {viewMode === 'list' && (
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
           {CATEGORY_TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                activeTab === tab.value
-                  ? 'bg-olive-600 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                activeTab === tab.value ? 'bg-olive-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               {tab.label}
@@ -324,82 +254,62 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
         </div>
       )}
 
-      {/* ── List View ───────────────────────────────────────── */}
+      {/* List View */}
       {viewMode === 'list' && (
         <>
           {filtered.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-slate-400 text-lg">
-                {search || activeTab !== 'All'
-                  ? 'No items match your filters.'
-                  : 'Your fridge is empty! Add some items to get started.'}
+              <p className="text-slate-400">
+                {search || activeTab !== 'All' ? 'Nessun risultato.' : 'Il frigo è vuoto! Aggiungi qualcosa.'}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {filtered.map((item) => {
                 const isPending = pendingId === item.id
-                const badge = item.expiry_date
-                  ? expiryBadge(item.expiry_date)
-                  : null
+                const badge = item.expiry_date ? expiryBadge(item.expiry_date) : null
 
                 return (
                   <div
                     key={item.id}
-                    className={`group bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md ${
+                    className={`bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all ${
                       isPending ? 'opacity-50 pointer-events-none' : ''
                     }`}
                   >
-                    {/* Category-colored image placeholder */}
-                    <div
-                      className={`h-28 bg-gradient-to-br ${categoryGradient(item.category)} flex items-center justify-center relative`}
-                    >
-                      <span className="text-4xl">
-                        {categoryEmoji(item.category)}
-                      </span>
-
-                      {/* Hover actions */}
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <form action={(fd) => handleAction(fd, useItem)}>
-                          <input type="hidden" name="id" value={item.id} />
-                          <button
-                            type="submit"
-                            disabled={isPending}
-                            className="bg-white/90 backdrop-blur-sm text-olive-700 hover:bg-olive-100 p-1.5 rounded-lg shadow-sm transition-colors"
-                            title="Use one"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                        </form>
-                        <form action={(fd) => handleAction(fd, deleteItem)}>
-                          <input type="hidden" name="id" value={item.id} />
-                          <button
-                            type="submit"
-                            disabled={isPending}
-                            className="bg-white/90 backdrop-blur-sm text-red-500 hover:bg-red-100 p-1.5 rounded-lg shadow-sm transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </form>
-                      </div>
+                    <div className={`h-24 bg-gradient-to-br ${categoryGradient(item.category)} flex items-center justify-center relative`}>
+                      <span className="text-3xl">{categoryEmoji(item.category)}</span>
                     </div>
-
-                    {/* Card body */}
                     <div className="p-3">
-                      <h3 className="font-bold text-slate-800 text-sm truncate">
-                        {item.name}
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {item.quantity} {item.unit}
-                      </p>
+                      <h3 className="font-bold text-slate-800 text-sm truncate">{item.name}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">{item.quantity} {item.unit}</p>
                       {badge && (
-                        <span
-                          className={`inline-block mt-2 text-[11px] font-semibold px-2 py-0.5 rounded-full ${badge.className}`}
-                        >
+                        <span className={`inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.className}`}>
                           {badge.label}
                         </span>
                       )}
+                      {/* Always-visible action buttons */}
+                      <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100">
+                        <form action={(fd) => handleAction(fd, useItem)} className="flex-1">
+                          <input type="hidden" name="id" value={item.id} />
+                          <button
+                            type="submit"
+                            disabled={isPending}
+                            className="w-full inline-flex items-center justify-center gap-1 text-xs font-medium text-olive-700 bg-olive-50 hover:bg-olive-100 rounded-lg py-1.5 transition-colors"
+                          >
+                            <Minus className="w-3 h-3" /> Usa
+                          </button>
+                        </form>
+                        <form action={(fd) => handleAction(fd, deleteItem)} className="flex-1">
+                          <input type="hidden" name="id" value={item.id} />
+                          <button
+                            type="submit"
+                            disabled={isPending}
+                            className="w-full inline-flex items-center justify-center gap-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg py-1.5 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" /> Elimina
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   </div>
                 )
@@ -409,135 +319,142 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
         </>
       )}
 
-      {/* ── Kitchen View ────────────────────────────────────── */}
+      {/* Kitchen View with drag & drop */}
       {viewMode === 'kitchen' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
-          {ZONE_ORDER.map((zone) => {
-            const config = ZONE_CONFIG[zone]
-            const ZoneIcon = config.icon
-            const zoneItems = groupedByZone[zone]
+        <>
+          <p className="text-xs text-slate-400 mb-3">
+            Trascina un prodotto da una zona all&apos;altra, oppure tieni premuto per spostarlo.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {ZONE_ORDER.map((zone) => {
+              const config = ZONE_CONFIG[zone]
+              const ZoneIcon = config.icon
+              const zoneItems = groupedByZone[zone]
+              const isOver = dragOverZone === zone
 
-            return (
-              <div
-                key={zone}
-                className={`bg-white rounded-3xl border ${config.borderColor} shadow-sm overflow-hidden`}
-              >
-                {/* Zone header */}
+              return (
                 <div
-                  className={`${config.headerBg} px-5 py-4 flex items-center justify-between`}
+                  key={zone}
+                  className={`bg-white rounded-2xl border-2 ${isOver ? 'border-olive-400 bg-olive-50/30 scale-[1.02]' : config.borderColor} shadow-sm overflow-hidden transition-all`}
+                  onDragOver={(e) => handleDragOver(e, zone)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, zone)}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <ZoneIcon className={`w-5 h-5 ${config.headerText}`} />
-                    <h2
-                      className={`text-base font-bold ${config.headerText}`}
-                    >
-                      {zone}
-                    </h2>
+                  <div className={`${config.headerBg} px-4 py-3 flex items-center justify-between`}>
+                    <div className="flex items-center gap-2">
+                      <ZoneIcon className={`w-4 h-4 ${config.headerText}`} />
+                      <h2 className={`text-sm font-bold ${config.headerText}`}>{zone}</h2>
+                    </div>
+                    <span className={`text-xs font-semibold ${config.headerText} bg-white/60 px-2 py-0.5 rounded-full`}>
+                      {zoneItems.length}
+                    </span>
                   </div>
-                  <span
-                    className={`text-xs font-semibold ${config.headerText} bg-white/60 px-2.5 py-1 rounded-full`}
-                  >
-                    {zoneItems.length} {zoneItems.length === 1 ? 'item' : 'items'}
-                  </span>
-                </div>
 
-                {/* Zone body */}
-                <div className="p-4 min-h-[200px]">
-                  {zoneItems.length === 0 ? (
-                    <div className="flex items-center justify-center h-full min-h-[160px]">
-                      <p className="text-slate-300 text-sm italic">
-                        {config.emptyText}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {zoneItems.map((item) => {
-                        const isPending = pendingId === item.id
-                        const days = item.expiry_date
-                          ? daysUntilExpiry(item.expiry_date)
-                          : null
+                  <div className={`p-3 min-h-[150px] ${config.bodyBg}`}>
+                    {zoneItems.length === 0 ? (
+                      <div className="flex items-center justify-center h-full min-h-[120px]">
+                        <p className="text-slate-300 text-sm italic">Vuoto — trascina qui!</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        {zoneItems.map((item) => {
+                          const isPending = pendingId === item.id
+                          const isDragging = dragItemId === item.id
+                          const days = item.expiry_date ? daysUntilExpiry(item.expiry_date) : null
+                          let pillBorder = 'border-slate-200'
+                          if (days !== null) {
+                            if (days <= 2) pillBorder = 'border-red-300'
+                            else if (days <= 5) pillBorder = 'border-amber-300'
+                          }
 
-                        let pillBorder = 'border-slate-200'
-                        if (days !== null) {
-                          if (days <= 0) pillBorder = 'border-red-400 border-2'
-                          else if (days <= 2)
-                            pillBorder = 'border-red-400 border-2'
-                          else if (days <= 5)
-                            pillBorder = 'border-amber-400 border-2'
-                        }
-
-                        return (
-                          <div
-                            key={item.id}
-                            className={`group/pill relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border ${pillBorder} text-sm transition-all hover:shadow-sm ${
-                              isPending
-                                ? 'opacity-50 pointer-events-none'
-                                : ''
-                            }`}
-                          >
-                            <span className="text-base leading-none">
-                              {categoryEmoji(item.category)}
-                            </span>
-                            <span className="font-medium text-slate-800 max-w-[120px] truncate">
-                              {item.name}
-                            </span>
-                            <span className="text-xs text-slate-400 whitespace-nowrap">
-                              {item.quantity} {item.unit}
-                            </span>
-
-                            {/* Hover actions on pill */}
-                            <div className="hidden group-hover/pill:inline-flex items-center gap-0.5 ml-1">
-                              <form
-                                action={(fd) => handleAction(fd, useItem)}
-                              >
-                                <input
-                                  type="hidden"
-                                  name="id"
-                                  value={item.id}
-                                />
-                                <button
-                                  type="submit"
-                                  disabled={isPending}
-                                  className="text-olive-600 hover:text-olive-800 p-0.5 transition-colors"
-                                  title="Use one"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                              </form>
-                              <form
-                                action={(fd) => handleAction(fd, deleteItem)}
-                              >
-                                <input
-                                  type="hidden"
-                                  name="id"
-                                  value={item.id}
-                                />
-                                <button
-                                  type="submit"
-                                  disabled={isPending}
-                                  className="text-red-400 hover:text-red-600 p-0.5 transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </form>
+                          return (
+                            <div
+                              key={item.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, item.id)}
+                              onDragEnd={() => { setDragItemId(null); setDragOverZone(null) }}
+                              onClick={() => setMoveModalItem(item)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-white border ${pillBorder} text-sm cursor-grab active:cursor-grabbing transition-all ${
+                                isPending ? 'opacity-50 pointer-events-none' : ''
+                              } ${isDragging ? 'opacity-30 scale-95' : 'hover:shadow-sm'}`}
+                            >
+                              <GripVertical className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                              <span className="text-base leading-none">{categoryEmoji(item.category)}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-800 text-sm truncate">{item.name}</p>
+                                <p className="text-[11px] text-slate-400">{item.quantity} {item.unit}</p>
+                              </div>
+                              {days !== null && days <= 3 && (
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+                                  days <= 0 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                                }`}>
+                                  {days <= 0 ? '!' : `${days}g`}
+                                </span>
+                              )}
+                              <div className="flex gap-1 shrink-0">
+                                <form action={(fd) => handleAction(fd, useItem)} onClick={(e) => e.stopPropagation()}>
+                                  <input type="hidden" name="id" value={item.id} />
+                                  <button type="submit" disabled={isPending} className="text-olive-600 hover:bg-olive-50 p-1 rounded-md transition-colors">
+                                    <Minus className="w-3.5 h-3.5" />
+                                  </button>
+                                </form>
+                                <form action={(fd) => handleAction(fd, deleteItem)} onClick={(e) => e.stopPropagation()}>
+                                  <input type="hidden" name="id" value={item.id} />
+                                  <button type="submit" disabled={isPending} className="text-red-400 hover:bg-red-50 p-1 rounded-md transition-colors">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </form>
+                              </div>
                             </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Move modal (for mobile tap) */}
+      {moveModalItem && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setMoveModalItem(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 pb-8 sm:pb-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-slate-900 mb-1">
+              Sposta {moveModalItem.name}
+            </h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Attualmente in: {mapToZone(moveModalItem.category)}
+            </p>
+            <div className="flex flex-col gap-2">
+              {ZONE_ORDER.filter(z => z !== mapToZone(moveModalItem.category)).map((zone) => {
+                const config = ZONE_CONFIG[zone]
+                const ZoneIcon = config.icon
+                return (
+                  <button
+                    key={zone}
+                    onClick={() => handleMoveToZone(moveModalItem, zone)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${config.borderColor} ${config.bodyBg} hover:shadow-sm transition-all`}
+                  >
+                    <ZoneIcon className={`w-5 h-5 ${config.headerText}`} />
+                    <span className="font-semibold text-slate-800">Sposta in {zone}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => setMoveModalItem(null)}
+              className="w-full mt-3 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              Annulla
+            </button>
+          </div>
         </div>
       )}
 
-      <AddItemModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-      />
+      <AddItemModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
     </div>
   )
 }
