@@ -1,18 +1,19 @@
 import { login, signup, resetPassword } from './actions'
-import { Leaf } from 'lucide-react'
+import { Leaf, Mail } from 'lucide-react'
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ message?: string; tab?: string }>
+  searchParams: Promise<{ message?: string; tab?: string; email?: string }>
 }) {
-  const { message, tab } = await searchParams
+  const { message, tab, email } = await searchParams
   const isSignIn = tab === 'signin'
   const isReset = tab === 'reset'
+  const isConfirm = tab === 'confirm'
   const isSuccess = message?.includes('Check your email')
 
   return (
-    <div className="flex-1 flex flex-col w-full px-8 sm:max-w-md mx-auto justify-center gap-2 mt-16">
+    <div className="flex-1 flex flex-col w-full px-8 sm:max-w-md mx-auto justify-center gap-2 mt-16 pb-16">
       {/* Logo */}
       <div className="flex flex-col items-center mb-8">
         <div className="bg-olive-100 p-3 rounded-2xl mb-4">
@@ -24,8 +25,34 @@ export default async function LoginPage({
         </p>
       </div>
 
+      {/* Email Confirmation Screen */}
+      {isConfirm && (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="bg-olive-100 p-4 rounded-full">
+            <Mail className="w-8 h-8 text-olive-600" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Check your email</h2>
+          <p className="text-slate-500 text-sm">
+            We sent a confirmation link to{' '}
+            <span className="font-semibold text-slate-700">{email || 'your email'}</span>.
+          </p>
+          <p className="text-slate-500 text-sm">
+            Click the link in the email to activate your account and get started.
+          </p>
+          <div className="bg-slate-50 rounded-xl p-4 mt-2 text-sm text-slate-500 w-full">
+            <p>Not seeing it? Check your spam folder.</p>
+          </div>
+          <a
+            href="/login?tab=signin"
+            className="text-olive-600 hover:text-olive-700 font-semibold text-sm mt-2"
+          >
+            Already confirmed? Sign in
+          </a>
+        </div>
+      )}
+
       {/* Tabs */}
-      {!isReset && (
+      {!isReset && !isConfirm && (
         <div className="flex bg-slate-100 rounded-2xl p-1 mb-6">
           <a
             href="/login"
@@ -47,7 +74,7 @@ export default async function LoginPage({
       )}
 
       {/* Sign Up */}
-      {!isSignIn && !isReset && (
+      {!isSignIn && !isReset && !isConfirm && (
         <form action={signup} className="flex flex-col gap-3">
           <label className="text-sm font-semibold text-slate-700">
             Your Name
@@ -157,7 +184,7 @@ export default async function LoginPage({
         </form>
       )}
 
-      {message && (
+      {message && !isConfirm && (
         <div className={`mt-4 p-4 border text-center rounded-xl text-sm font-medium ${
           isSuccess
             ? 'bg-green-50 border-green-200 text-green-600'

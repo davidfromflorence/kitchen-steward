@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kitchen-steward.vercel.app'
+
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
@@ -14,12 +16,10 @@ export async function login(formData: FormData) {
     redirect(`/login?tab=signin&message=${encodeURIComponent('Please enter both email and password')}`)
   }
 
-  console.log('[login attempt]', email, '| password length:', password.length)
-
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-    console.error('[login error]', error.message, '| email:', email, '| password length:', password.length)
+    console.error('[login error]', error.message, '| email:', email)
     redirect(`/login?tab=signin&message=${encodeURIComponent(error.message)}`)
   }
 
@@ -34,11 +34,16 @@ export async function signup(formData: FormData) {
   const password = formData.get('password') as string
   const fullName = (formData.get('full_name') as string)?.trim()
 
+  if (!email || !password || !fullName) {
+    redirect(`/login?message=${encodeURIComponent('Please fill in all fields')}`)
+  }
+
   const { data: authData, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { full_name: fullName },
+      emailRedirectTo: `${SITE_URL}/auth/callback`,
     },
   })
 
@@ -59,8 +64,17 @@ export async function signup(formData: FormData) {
     }
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/setup')
+  // If email confirmation is enabled, user won't have a session yet
+  // Show "check your email" message instead of redirecting to /setup
+  const hasSession = !!authData.session
+  if (hasSession) {
+    // Email confirmation disabled — go straight to setup
+    revalidatePath('/', 'layout')
+    redirect('/setup')
+  }
+
+  // Email confirmation enabled — show confirmation message
+  redirect(`/login?tab=confirm&email=${encodeURIComponent(email)}`)
 }
 
 export async function resetPassword(formData: FormData) {
@@ -73,7 +87,7 @@ export async function resetPassword(formData: FormData) {
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://kitchen-steward.vercel.app'}/auth/callback?next=/login?tab=signin`,
+    redirectTo: `${SITE_URL}/auth/callback?next=/settings`,
   })
 
   if (error) {
