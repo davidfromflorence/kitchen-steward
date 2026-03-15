@@ -10,6 +10,11 @@ export async function GET() {
     SUPABASE_URL: url ? `set (${url.substring(0, 30)}...)` : 'MISSING',
     ANON_KEY: anonKey ? `set (${anonKey.substring(0, 20)}...)` : 'MISSING',
     SERVICE_ROLE: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'MISSING',
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? 'set' : 'MISSING',
+    TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID ? 'set' : 'MISSING',
+    TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN ? 'set' : 'MISSING',
+    TWILIO_WHATSAPP_NUMBER: process.env.TWILIO_WHATSAPP_NUMBER ? 'set' : 'MISSING',
+    CRON_SECRET: process.env.CRON_SECRET ? 'set' : 'MISSING',
   }
 
   // Test actual auth connection
