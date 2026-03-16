@@ -74,20 +74,18 @@ export default async function HouseholdPage({
       )}
 
       {/* Invite Code Card */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
         <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">
-          Invite Code
+          Codice invito
         </h2>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-center">
-            <span className="text-2xl font-mono font-bold tracking-[0.3em] text-slate-900">
-              {joinCode}
-            </span>
-          </div>
-          <CopyCodeButton code={joinCode} />
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-center mb-3">
+          <span className="text-2xl font-mono font-bold tracking-[0.25em] text-slate-900">
+            {joinCode}
+          </span>
         </div>
+        <CopyCodeButton code={joinCode} />
         <p className="text-xs text-slate-400 mt-3 text-center">
-          Share this code with family members so they can join your fridge.
+          Condividi il codice o il link con i tuoi familiari.
         </p>
       </div>
 

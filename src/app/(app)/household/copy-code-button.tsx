@@ -42,21 +42,21 @@ export default function CopyCodeButton({ code }: { code: string }) {
     <div className="flex gap-2">
       <button
         onClick={handleCopy}
-        className={`p-3 rounded-xl transition-all ${
+        className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
           copied
             ? 'bg-olive-100 text-olive-600'
             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
         }`}
-        title="Copia codice"
       >
-        {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+        {copied ? 'Copiato!' : 'Copia codice'}
       </button>
       <button
         onClick={handleShare}
-        className="p-3 rounded-xl bg-olive-600 text-white hover:bg-olive-700 transition-all active:scale-95"
-        title="Condividi link"
+        className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-olive-600 text-white hover:bg-olive-700 text-sm font-semibold transition-all active:scale-95"
       >
-        <Share2 className="w-5 h-5" />
+        <Share2 className="w-4 h-4" />
+        Condividi
       </button>
     </div>
   )
