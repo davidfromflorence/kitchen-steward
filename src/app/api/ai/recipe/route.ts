@@ -4,26 +4,47 @@ import { NextResponse } from 'next/server'
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! })
 
 export async function POST(request: Request) {
-  const { ingredients } = await request.json()
+  const { ingredients, params } = await request.json()
 
-  const prompt = `You are a zero-waste chef. Given these ingredients (with days until expiry), suggest 2 recipes that prioritize using items expiring soonest.
+  const cookingTime = params?.cookingTime || 'any'
+  const ingredientCount = params?.ingredientCount || '5'
+  const servings = params?.servings || '2'
+  const diets = params?.diets || []
 
-Ingredients:
-${ingredients.map((i: { name: string; daysLeft: number }) => `- ${i.name} (${i.daysLeft} days left)`).join('\n')}
+  const timeConstraint = cookingTime !== 'any' ? `Tempo massimo: ${cookingTime} minuti.` : ''
+  const dietConstraint = diets.length > 0 ? `Dieta: ${diets.join(', ')}.` : ''
 
-Return ONLY a JSON object with this structure:
+  const prompt = `Sei uno chef anti-spreco italiano. Dati questi ingredienti (con giorni alla scadenza), suggerisci 3 ricette DIVERSE che usino prioritariamente quelli in scadenza.
+
+Ingredienti disponibili:
+${ingredients.map((i: { name: string; daysLeft: number }) => `- ${i.name} (${i.daysLeft} giorni)`).join('\n')}
+
+Parametri:
+- Porzioni: ${servings}
+- Max ingredienti per ricetta: ${ingredientCount}
+${timeConstraint}
+${dietConstraint}
+
+Le 3 ricette devono essere diverse per tipo (es: un primo, un secondo, uno sfizioso) e difficoltà.
+
+Rispondi SOLO con un JSON valido:
 {
   "recipes": [
     {
-      "title": "Recipe Name",
-      "quick_steps": ["Step 1", "Step 2", "Step 3"],
+      "title": "Nome ricetta in italiano",
+      "emoji": "🍝",
+      "description": "Una frase che descrive il piatto e perché è anti-spreco",
       "prep_time_minutes": 20,
-      "zero_waste_reason": "Uses the salmon expiring tomorrow"
+      "difficulty": "Facile|Media|Avanzata",
+      "ingredients": ["200g pasta", "2 uova", "100g pancetta"],
+      "quick_steps": ["Passo 1", "Passo 2", "Passo 3"],
+      "eco_impact_kg": 0.8,
+      "zero_waste_reason": "Usa le uova che scadono domani"
     }
   ]
 }
 
-Return ONLY valid JSON, no markdown.`
+3 ricette. JSON valido, no markdown, no backtick.`
 
   try {
     const response = await ai.models.generateContent({

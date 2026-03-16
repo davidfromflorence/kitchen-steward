@@ -255,7 +255,7 @@ async function handleWithAI(supabase: any, householdId: string, userId: string, 
 
 Regole: italiano, conciso, emoji, formattazione WhatsApp (*grassetto*).
 Per liste spesa usa ☐ per ogni riga (copiabili su Google Keep).
-Per ricette: nome, tempo, ingredienti, passi (max 5), tip anti-spreco.
+Per RICETTE: proponi SEMPRE 3 opzioni brevi (nome + tempo + 1 riga descrizione), numerate 1️⃣ 2️⃣ 3️⃣. L'utente sceglie il numero e tu rispondi con la ricetta completa (ingredienti, passi max 5, tip anti-spreco). Se l'utente dice un numero dopo una proposta di ricette, mostra quella ricetta completa.
 Per meal plan: Lun-Dom con pranzo e cena.
 
 AZIONI: se l'utente aggiunge prodotti, rispondi con:
