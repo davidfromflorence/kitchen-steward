@@ -1,5 +1,6 @@
 import { login, signup, resetPassword } from './actions'
 import { Leaf, Mail } from 'lucide-react'
+import PasswordInput from './password-input'
 
 export default async function LoginPage({
   searchParams,
@@ -98,14 +99,7 @@ export default async function LoginPage({
           <label className="text-sm font-semibold text-slate-700 mt-2">
             Password
           </label>
-          <input
-            className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500 transition-all"
-            type="password"
-            name="password"
-            placeholder="At least 6 characters"
-            minLength={6}
-            required
-          />
+          <PasswordInput name="password" placeholder="Almeno 6 caratteri" minLength={6} />
           <button
             type="submit"
             className="mt-4 bg-olive-600 hover:bg-olive-700 text-white rounded-xl py-3 font-semibold active:scale-95 transition-all"
@@ -131,13 +125,7 @@ export default async function LoginPage({
           <label className="text-sm font-semibold text-slate-700 mt-2">
             Password
           </label>
-          <input
-            className="rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500 transition-all"
-            type="password"
-            name="password"
-            placeholder="Your password"
-            required
-          />
+          <PasswordInput name="password" placeholder="La tua password" />
           <button
             type="submit"
             className="mt-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-3 font-semibold active:scale-95 transition-all"

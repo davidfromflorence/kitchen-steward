@@ -5,54 +5,48 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
-  const type = searchParams.get('type')
-  const next = searchParams.get('next') ?? '/setup'
+  const type = searchParams.get('type') as 'signup' | 'email' | 'recovery' | null
 
   const supabase = await createClient()
 
-  // Handle PKCE code exchange (used by password reset, magic links)
+  // Handle PKCE code exchange
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Check if user has a household — if so, go to dashboard
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('household_id')
-          .eq('id', user.id)
-          .single()
-
-        const destination = profile?.household_id ? '/dashboard' : '/setup'
-        return NextResponse.redirect(`${origin}${next === '/setup' ? destination : next}`)
-      }
-      return NextResponse.redirect(`${origin}${next}`)
+      return NextResponse.redirect(`${origin}${await getDestination(supabase)}`)
     }
     console.error('[auth callback] code exchange error:', error.message)
   }
 
-  // Handle token hash (used by email confirmation links)
+  // Handle token hash (email confirmation)
   if (token_hash && type) {
-    const { error } = await supabase.auth.verifyOtp({ token_hash, type: type as 'signup' | 'email' })
+    const { error } = await supabase.auth.verifyOtp({ token_hash, type })
     if (!error) {
-      // Check if user has a household
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('household_id')
-          .eq('id', user.id)
-          .single()
-
-        const destination = profile?.household_id ? '/dashboard' : '/setup'
-        return NextResponse.redirect(`${origin}${destination}`)
-      }
-      return NextResponse.redirect(`${origin}/setup`)
+      return NextResponse.redirect(`${origin}${await getDestination(supabase)}`)
     }
     console.error('[auth callback] verify OTP error:', error.message)
   }
 
+  // If no code or token_hash, the token might be in the URL hash fragment
+  // Redirect to a client page that can extract it
   return NextResponse.redirect(
-    `${origin}/login?tab=signin&message=${encodeURIComponent('The link is invalid or has expired. Please try again.')}`
+    `${origin}/auth/confirm`
   )
+}
+
+async function getDestination(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('household_id')
+        .eq('id', user.id)
+        .single()
+      return profile?.household_id ? '/dashboard' : '/setup'
+    }
+  } catch {
+    // Fall through
+  }
+  return '/setup'
 }

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { customAlphabet } from 'nanoid'
@@ -9,6 +10,13 @@ const generateJoinCode = customAlphabet(
   '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
   8
 )
+
+function getSupabaseAdmin() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function createHousehold(formData: FormData) {
   const supabase = await createClient()
@@ -20,27 +28,28 @@ export async function createHousehold(formData: FormData) {
   } = await supabase.auth.getUser()
   if (!user) return redirect('/login')
 
-  // 1. Generate ID upfront (avoids RLS read-back issue)
   const householdId = crypto.randomUUID()
 
-  const { error: hError } = await supabase
+  // Use admin client to bypass RLS for insert
+  const admin = getSupabaseAdmin()
+
+  const { error: hError } = await admin
     .from('households')
     .insert([{ id: householdId, name, join_code: joinCode }])
 
   if (hError) {
     console.error('Error creating household:', hError)
-    return redirect(`/setup?error=${encodeURIComponent('Household: ' + hError.message)}`)
+    return redirect(`/setup?error=${encodeURIComponent('Errore: ' + hError.message)}`)
   }
 
-  // 2. Link the user to the household
-  const { error: uError } = await supabase
+  const { error: uError } = await admin
     .from('users')
     .update({ household_id: householdId })
     .eq('id', user.id)
 
   if (uError) {
-    console.error('Error linking user to household:', uError)
-    return redirect(`/setup?error=${encodeURIComponent('Link: ' + uError.message)}`)
+    console.error('Error linking user:', uError)
+    return redirect(`/setup?error=${encodeURIComponent('Errore: ' + uError.message)}`)
   }
 
   revalidatePath('/dashboard')
@@ -49,32 +58,34 @@ export async function createHousehold(formData: FormData) {
 
 export async function joinHousehold(formData: FormData) {
   const supabase = await createClient()
-  const joinCode = (formData.get('join_code') as string)?.toUpperCase()
+  const joinCode = (formData.get('join_code') as string)?.trim().toUpperCase()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return redirect('/login')
 
-  // 1. Find the household
-  const { data: household, error: hError } = await supabase
+  // Use admin client to bypass RLS — new users can't see households yet
+  const admin = getSupabaseAdmin()
+
+  const { data: household, error: hError } = await admin
     .from('households')
-    .select('id')
+    .select('id, name')
     .eq('join_code', joinCode)
     .single()
 
   if (hError || !household) {
-    return redirect('/setup?error=Invalid join code')
+    console.error('Join code error:', hError?.message, 'code:', joinCode)
+    return redirect(`/setup?error=${encodeURIComponent('Codice non valido. Controlla e riprova.')}`)
   }
 
-  // 2. Link the user
-  const { error: uError } = await supabase
+  const { error: uError } = await admin
     .from('users')
     .update({ household_id: household.id })
     .eq('id', user.id)
 
   if (uError) {
-    return redirect('/setup?error=Failed to join household')
+    return redirect(`/setup?error=${encodeURIComponent('Errore nel collegamento. Riprova.')}`)
   }
 
   revalidatePath('/dashboard')
