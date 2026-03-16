@@ -258,10 +258,21 @@ Per liste spesa usa ☐ per ogni riga (copiabili su Google Keep).
 Per RICETTE: proponi SEMPRE 3 opzioni brevi (nome + tempo + 1 riga descrizione), numerate 1️⃣ 2️⃣ 3️⃣. L'utente sceglie il numero e tu rispondi con la ricetta completa (ingredienti, passi max 5, tip anti-spreco). Se l'utente dice un numero dopo una proposta di ricette, mostra quella ricetta completa.
 Per meal plan: Lun-Dom con pranzo e cena.
 
-AZIONI: se l'utente aggiunge prodotti, rispondi con:
-<<<ADD_ITEMS>>>[{"name":"...","qty":N,"unit":"pz|kg|g|litri|ml","estimated_expiry_days":N,"category":"Protein|Vegetable|Fruit|Dairy|Carbohydrate|Condiment|General"}]<<<END>>>
+AZIONI DATABASE:
 
-Se genera spesa, salva con:
+Se l'utente AGGIUNGE prodotti (ha comprato, aggiungi...):
+<<<ADD_ITEMS>>>[{"name":"...","qty":N,"unit":"pz|kg|g|litri|ml","category":"Protein|Vegetable|Fruit|Dairy|Carbohydrate|Condiment|General"}]<<<END>>>
+
+Se l'utente ha MANGIATO/CUCINATO/USATO qualcosa (ho mangiato, ho cucinato, abbiamo fatto...), DEVI sottrarre gli ingredienti dal frigo. Stima le quantità tipiche di una porzione italiana. Usa questo blocco:
+<<<USE_ITEMS>>>[{"name":"nome prodotto nel frigo","qty_subtract":N,"unit":"stessa unit del frigo"}]<<<END>>>
+
+REGOLE PER USE_ITEMS:
+- Il "name" DEVE corrispondere a un prodotto nel frigo (usa nomi simili a quelli elencati sopra)
+- Stima quantità realistiche per porzione: pasta ~100g, pesto ~30g, pollo ~150g, uova 2pz, latte ~200ml, etc.
+- Se un prodotto non è nel frigo, ignoralo (non sottrarlo)
+- Conferma cosa hai sottratto nel messaggio visibile
+
+Se genera spesa:
 <<<SAVE_SHOPPING>>>[{"name":"...","category":"General"}]<<<END>>>
 
 SEMPRE termina con:
@@ -329,6 +340,40 @@ Messaggio utente: ${message}`
       console.error('SAVE_SHOPPING error:', e)
     }
     reply = reply.replace(/<<<SAVE_SHOPPING>>>[\s\S]*?<<<END>>>/g, '').trim()
+  }
+
+  // Process USE_ITEMS (subtract from inventory)
+  const useMatch = reply.match(/<<<USE_ITEMS>>>([\s\S]*?)<<<END>>>/)
+  if (useMatch) {
+    try {
+      const parsed: Array<{ name: string; qty_subtract: number; unit: string }> = JSON.parse(useMatch[1])
+      for (const used of parsed) {
+        // Find matching item in inventory (fuzzy match)
+        const { data: matches } = await supabase
+          .from('inventory_items')
+          .select('id, name, quantity, unit')
+          .eq('household_id', householdId)
+          .ilike('name', `%${used.name}%`)
+          .order('expiry_date', { ascending: true }) // use oldest first
+          .limit(1)
+
+        if (matches && matches.length > 0) {
+          const item = matches[0]
+          const newQty = item.quantity - used.qty_subtract
+
+          if (newQty <= 0) {
+            // Remove item entirely
+            await supabase.from('inventory_items').delete().eq('id', item.id)
+          } else {
+            // Subtract quantity
+            await supabase.from('inventory_items').update({ quantity: newQty }).eq('id', item.id)
+          }
+        }
+      }
+    } catch (e) {
+      console.error('USE_ITEMS error:', e)
+    }
+    reply = reply.replace(/<<<USE_ITEMS>>>[\s\S]*?<<<END>>>/g, '').trim()
   }
 
   return reply.replace(/\n{3,}/g, '\n\n')
