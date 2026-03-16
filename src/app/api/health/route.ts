@@ -48,5 +48,17 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ envCheck, authTest, geminiTest })
+  // Test service role key by querying users
+  let serviceRoleTest = 'not tested'
+  if (url && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY)
+      const { data, error } = await admin.from('users').select('id').limit(1)
+      serviceRoleTest = error ? `FAILED: ${error.message}` : `working (${data?.length ?? 0} users found)`
+    } catch (e) {
+      serviceRoleTest = `FAILED: ${e}`
+    }
+  }
+
+  return NextResponse.json({ envCheck, authTest, geminiTest, serviceRoleTest })
 }
