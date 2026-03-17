@@ -13,8 +13,13 @@ import {
   Snowflake,
   Archive,
   GripVertical,
+  UtensilsCrossed,
+  Send,
+  Loader2,
+  Check,
+  X,
 } from 'lucide-react'
-import { deleteItem, useItem, moveItem } from '@/app/actions/inventory'
+import { deleteItem, useItem, moveItem, logMeal } from '@/app/actions/inventory'
 import AddItemModal from './add-item-modal'
 
 interface InventoryItem {
@@ -127,6 +132,9 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   const [dragOverZone, setDragOverZone] = useState<KitchenZone | null>(null)
   const touchStartRef = useRef<{ id: string; x: number; y: number } | null>(null)
   const [moveModalItem, setMoveModalItem] = useState<InventoryItem | null>(null)
+  const [mealInput, setMealInput] = useState('')
+  const [mealLoading, setMealLoading] = useState(false)
+  const [mealResult, setMealResult] = useState<{ used: Array<{ name: string; subtracted: number; unit: string; removed: boolean }>; error?: string } | null>(null)
 
   useEffect(() => {
     if (searchParams.get('add') === 'true') setShowAddModal(true)
@@ -143,6 +151,23 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   const groupedByZone: Record<KitchenZone, InventoryItem[]> = { Fridge: [], Freezer: [], Pantry: [] }
   if (viewMode === 'kitchen') {
     for (const item of filtered) groupedByZone[mapToZone(item)].push(item)
+  }
+
+  async function handleLogMeal() {
+    if (!mealInput.trim() || mealLoading) return
+    setMealLoading(true)
+    setMealResult(null)
+    try {
+      const result = await logMeal(mealInput.trim())
+      setMealResult(result)
+      if (result.success) setMealInput('')
+      // Auto-hide after 5s
+      setTimeout(() => setMealResult(null), 5000)
+    } catch {
+      setMealResult({ error: 'Errore. Riprova.', used: [] })
+    } finally {
+      setMealLoading(false)
+    }
   }
 
   async function handleAction(formData: FormData, action: typeof deleteItem | typeof useItem) {
@@ -461,6 +486,62 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
       )}
 
       <AddItemModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
+
+      {/* Floating "Ho mangiato" bar */}
+      <div className="fixed bottom-16 md:bottom-4 left-0 right-0 md:left-64 px-4 z-40">
+        <div className="max-w-4xl mx-auto">
+          {/* Result toast */}
+          {mealResult && (
+            <div className={`mb-2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${
+              mealResult.error
+                ? 'bg-red-50 border border-red-200 text-red-700'
+                : 'bg-olive-50 border border-olive-200 text-olive-800'
+            }`}>
+              {mealResult.error ? (
+                <div className="flex items-center gap-2">
+                  <X className="w-4 h-4 shrink-0" />
+                  {mealResult.error}
+                </div>
+              ) : (
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Aggiornato!</p>
+                    {mealResult.used.map((u, i) => (
+                      <p key={i} className="text-xs mt-0.5">
+                        {u.removed ? '🗑️' : '📉'} {u.name}: -{u.subtracted} {u.unit} {u.removed ? '(finito)' : ''}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Input bar */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-lg flex items-center gap-2 p-2">
+            <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+              <UtensilsCrossed className="w-4 h-4 text-orange-500" />
+            </div>
+            <input
+              type="text"
+              value={mealInput}
+              onChange={(e) => setMealInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogMeal()}
+              placeholder="Ho mangiato..."
+              disabled={mealLoading}
+              className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder:text-slate-400 min-w-0"
+            />
+            <button
+              onClick={handleLogMeal}
+              disabled={!mealInput.trim() || mealLoading}
+              className="w-9 h-9 rounded-xl bg-olive-600 text-white flex items-center justify-center shrink-0 hover:bg-olive-700 disabled:opacity-40 disabled:hover:bg-olive-600 transition-all active:scale-90"
+            >
+              {mealLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

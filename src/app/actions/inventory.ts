@@ -178,3 +178,73 @@ export async function moveItem(id: string, targetZone: string) {
   revalidateAll()
   return { success: true }
 }
+
+export async function logMeal(mealDescription: string): Promise<{
+  success?: boolean
+  error?: string
+  used: Array<{ name: string; subtracted: number; unit: string; removed: boolean }>
+}> {
+  const { supabase, householdId } = await getAuthAndHousehold()
+
+  const { data: inventory } = await supabase
+    .from('inventory_items')
+    .select('id, name, quantity, unit')
+    .eq('household_id', householdId)
+    .order('expiry_date', { ascending: true })
+
+  if (!inventory || inventory.length === 0) {
+    return { error: 'Il frigo è vuoto', used: [] }
+  }
+
+  const inventoryList = inventory.map(i => `${i.name} (${i.quantity} ${i.unit})`).join(', ')
+
+  const { GoogleGenAI } = await import('@google/genai')
+  const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! })
+
+  const prompt = `L'utente ha mangiato: "${mealDescription}"
+
+Contenuto frigo: ${inventoryList}
+
+Stima quali prodotti del frigo sono stati usati e in che quantità (porzione italiana tipica).
+Es: pasta ~100g, pesto ~30g, pollo ~150g, uova 2pz, latte ~200ml, mozzarella 1pz.
+
+Rispondi SOLO con JSON array. Ogni item deve avere "name" che corrisponde ESATTAMENTE a un nome nel frigo.
+[{"name": "nome esatto dal frigo", "subtract": numero, "unit": "stessa unità del frigo"}]
+
+Se nessun prodotto nel frigo corrisponde, rispondi con []. Solo JSON, no markdown.`
+
+  try {
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    })
+
+    const raw = result.text?.replace(/```json\n?|\n?```/g, '').trim() || '[]'
+    const items: Array<{ name: string; subtract: number }> = JSON.parse(raw)
+
+    const used: Array<{ name: string; subtracted: number; unit: string; removed: boolean }> = []
+
+    for (const item of items) {
+      const match = inventory.find(i =>
+        i.name.toLowerCase().includes(item.name.toLowerCase()) ||
+        item.name.toLowerCase().includes(i.name.toLowerCase())
+      )
+      if (!match) continue
+
+      const newQty = match.quantity - item.subtract
+      if (newQty <= 0) {
+        await supabase.from('inventory_items').delete().eq('id', match.id)
+        used.push({ name: match.name, subtracted: match.quantity, unit: match.unit, removed: true })
+      } else {
+        await supabase.from('inventory_items').update({ quantity: newQty }).eq('id', match.id)
+        used.push({ name: match.name, subtracted: item.subtract, unit: match.unit, removed: false })
+      }
+    }
+
+    revalidateAll()
+    return { success: true, used }
+  } catch (e) {
+    console.error('logMeal error:', e)
+    return { error: 'Non sono riuscito a elaborare il pasto', used: [] }
+  }
+}
