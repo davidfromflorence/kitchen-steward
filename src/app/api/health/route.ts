@@ -60,5 +60,17 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ envCheck, authTest, geminiTest, serviceRoleTest })
+  // Test WA user lookup
+  let waTest = 'not tested'
+  if (url && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY)
+      const { data, error } = await admin.from('users').select('id').eq('whatsapp_number', '+393925516112').single()
+      waTest = error ? `FAILED: ${error.message}` : `found user: ${data?.id?.substring(0, 8)}`
+    } catch (e) {
+      waTest = `FAILED: ${e}`
+    }
+  }
+
+  return NextResponse.json({ envCheck, authTest, geminiTest, serviceRoleTest, waTest })
 }
