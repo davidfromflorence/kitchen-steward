@@ -134,6 +134,7 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   const [moveModalItem, setMoveModalItem] = useState<InventoryItem | null>(null)
   const [mealInput, setMealInput] = useState('')
   const [mealLoading, setMealLoading] = useState(false)
+  const [showMealModal, setShowMealModal] = useState(false)
   const [mealResult, setMealResult] = useState<{ used: Array<{ name: string; subtracted: number; unit: string; removed: boolean }>; error?: string } | null>(null)
 
   useEffect(() => {
@@ -161,8 +162,6 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
       const result = await logMeal(mealInput.trim())
       setMealResult(result)
       if (result.success) setMealInput('')
-      // Auto-hide after 5s
-      setTimeout(() => setMealResult(null), 5000)
     } catch {
       setMealResult({ error: 'Errore. Riprova.', used: [] })
     } finally {
@@ -225,25 +224,34 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
             <span className="font-semibold text-olive-600">{freshCount}</span> ingredienti freschi
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:flex-none">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cerca..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 w-full sm:w-48"
-            />
-          </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-1.5 bg-olive-600 hover:bg-olive-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            Aggiungi
-          </button>
+        <div className="relative flex-1 sm:flex-none sm:w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Cerca..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 w-full"
+          />
         </div>
+      </div>
+
+      {/* Action buttons row */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex-1 inline-flex items-center justify-center gap-2 bg-olive-600 hover:bg-olive-700 text-white py-3 rounded-xl text-sm font-semibold transition-colors shadow-sm active:scale-95"
+        >
+          <Plus className="w-4 h-4" />
+          Aggiungi al frigo
+        </button>
+        <button
+          onClick={() => setShowMealModal(true)}
+          className="flex-1 inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors shadow-sm active:scale-95"
+        >
+          <UtensilsCrossed className="w-4 h-4" />
+          Ho mangiato
+        </button>
       </div>
 
       {/* View toggle */}
@@ -487,61 +495,102 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
 
       <AddItemModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
 
-      {/* Floating "Ho mangiato" bar */}
-      <div className="fixed bottom-16 md:bottom-4 left-0 right-0 md:left-64 px-4 z-40">
-        <div className="max-w-4xl mx-auto">
-          {/* Result toast */}
-          {mealResult && (
-            <div className={`mb-2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${
-              mealResult.error
-                ? 'bg-red-50 border border-red-200 text-red-700'
-                : 'bg-olive-50 border border-olive-200 text-olive-800'
-            }`}>
-              {mealResult.error ? (
-                <div className="flex items-center gap-2">
-                  <X className="w-4 h-4 shrink-0" />
-                  {mealResult.error}
-                </div>
-              ) : (
-                <div className="flex items-start gap-2">
-                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+      {/* "Ho mangiato" Modal */}
+      {showMealModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => !mealLoading && setShowMealModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md p-5 pb-8 sm:pb-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+                <UtensilsCrossed className="w-5 h-5 text-orange-500" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Ho mangiato...</h3>
+                <p className="text-xs text-slate-500">Scrivi cosa hai mangiato e aggiorno il frigo</p>
+              </div>
+            </div>
+
+            {/* Result */}
+            {mealResult && (
+              <div className={`mb-4 rounded-xl px-4 py-3 text-sm ${
+                mealResult.error
+                  ? 'bg-red-50 border border-red-200 text-red-700'
+                  : 'bg-olive-50 border border-olive-200 text-olive-800'
+              }`}>
+                {mealResult.error ? (
+                  <div className="flex items-center gap-2">
+                    <X className="w-4 h-4 shrink-0" />
+                    {mealResult.error}
+                  </div>
+                ) : (
                   <div>
-                    <p className="font-semibold">Aggiornato!</p>
+                    <p className="font-semibold flex items-center gap-1.5 mb-1">
+                      <Check className="w-4 h-4" /> Frigo aggiornato!
+                    </p>
                     {mealResult.used.map((u, i) => (
-                      <p key={i} className="text-xs mt-0.5">
+                      <p key={i} className="text-xs ml-5.5">
                         {u.removed ? '🗑️' : '📉'} {u.name}: -{u.subtracted} {u.unit} {u.removed ? '(finito)' : ''}
                       </p>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
 
-          {/* Input bar */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-lg flex items-center gap-2 p-2">
-            <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
-              <UtensilsCrossed className="w-4 h-4 text-orange-500" />
+            {/* Input */}
+            <div className="flex flex-col gap-3">
+              <input
+                type="text"
+                value={mealInput}
+                onChange={(e) => setMealInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogMeal()}
+                placeholder='Es: "Pasta al pesto per 2", "Frittata con 3 uova"'
+                disabled={mealLoading}
+                autoFocus
+                className="w-full rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400 transition-all text-sm"
+              />
+
+              {/* Quick suggestions */}
+              <div className="flex flex-wrap gap-1.5">
+                {['Pasta', 'Insalata', 'Panino', 'Frittata', 'Riso'].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setMealInput(prev => prev ? prev : s.toLowerCase())}
+                    className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={handleLogMeal}
+                disabled={!mealInput.trim() || mealLoading}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl py-3 font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {mealLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Aggiorno il frigo...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Aggiorna frigo
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => { setShowMealModal(false); setMealResult(null) }}
+                disabled={mealLoading}
+                className="w-full py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                Chiudi
+              </button>
             </div>
-            <input
-              type="text"
-              value={mealInput}
-              onChange={(e) => setMealInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogMeal()}
-              placeholder="Ho mangiato..."
-              disabled={mealLoading}
-              className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder:text-slate-400 min-w-0"
-            />
-            <button
-              onClick={handleLogMeal}
-              disabled={!mealInput.trim() || mealLoading}
-              className="w-9 h-9 rounded-xl bg-olive-600 text-white flex items-center justify-center shrink-0 hover:bg-olive-700 disabled:opacity-40 disabled:hover:bg-olive-600 transition-all active:scale-90"
-            >
-              {mealLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

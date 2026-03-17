@@ -201,17 +201,28 @@ export async function logMeal(mealDescription: string): Promise<{
   const { GoogleGenAI } = await import('@google/genai')
   const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! })
 
+  // Number each item so AI can reference by ID
+  const numberedList = inventory.map((i, idx) => `[${idx}] ${i.name} (${i.quantity} ${i.unit})`).join('\n')
+
   const prompt = `L'utente ha mangiato: "${mealDescription}"
 
-Contenuto frigo: ${inventoryList}
+Prodotti nel frigo (con indice):
+${numberedList}
 
-Stima quali prodotti del frigo sono stati usati e in che quantità (porzione italiana tipica).
-Es: pasta ~100g, pesto ~30g, pollo ~150g, uova 2pz, latte ~200ml, mozzarella 1pz.
+COMPITO: identifica SOLO i prodotti che sono stati EFFETTIVAMENTE usati per preparare "${mealDescription}".
 
-Rispondi SOLO con JSON array. Ogni item deve avere "name" che corrisponde ESATTAMENTE a un nome nel frigo.
-[{"name": "nome esatto dal frigo", "subtract": numero, "unit": "stessa unità del frigo"}]
+REGOLE IMPORTANTI:
+- Usa SOLO l'indice [N] per identificare i prodotti
+- "pasta al pesto" usa PASTA (tipo Farfalle, Spaghetti ecc) e PESTO, NON pasta sfoglia, NON pasta fresca per tramezzini
+- "frittata" usa UOVA e verdure, NON tutto ciò che contiene la parola
+- Sii PRECISO: se il piatto è "pasta al pesto" non includere mozzarella, pollo, etc.
+- Stima quantità per 1 porzione italiana: pasta ~80g, riso ~80g, pesto ~30g, pollo ~150g, uova 2pz, mozzarella 1pz, verdure ~150g
+- Se il piatto menziona "per 2" o "per 4", moltiplica le quantità
 
-Se nessun prodotto nel frigo corrisponde, rispondi con []. Solo JSON, no markdown.`
+Rispondi SOLO con JSON array:
+[{"index": N, "subtract": quantità_da_sottrarre}]
+
+Se nessun prodotto corrisponde, rispondi []. Solo JSON, no markdown.`
 
   try {
     const result = await ai.models.generateContent({
@@ -220,15 +231,13 @@ Se nessun prodotto nel frigo corrisponde, rispondi con []. Solo JSON, no markdow
     })
 
     const raw = result.text?.replace(/```json\n?|\n?```/g, '').trim() || '[]'
-    const items: Array<{ name: string; subtract: number }> = JSON.parse(raw)
+    const items: Array<{ index: number; subtract: number }> = JSON.parse(raw)
 
     const used: Array<{ name: string; subtracted: number; unit: string; removed: boolean }> = []
 
     for (const item of items) {
-      const match = inventory.find(i =>
-        i.name.toLowerCase().includes(item.name.toLowerCase()) ||
-        item.name.toLowerCase().includes(i.name.toLowerCase())
-      )
+      // Match by exact index — no fuzzy matching
+      const match = inventory[item.index]
       if (!match) continue
 
       const newQty = match.quantity - item.subtract
