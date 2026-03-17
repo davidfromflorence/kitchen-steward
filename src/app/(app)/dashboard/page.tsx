@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import AddButton from './add-button'
+import ActionButtons from './action-buttons'
 import XPBar from './xp-bar'
 import DailyChallenge from './daily-challenge'
 import {
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
             senza sprechi
           </p>
         </div>
-        <AddButton />
+        <ActionButtons />
       </div>
 
       {/* XP Bar */}
