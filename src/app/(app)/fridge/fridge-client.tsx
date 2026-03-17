@@ -224,34 +224,32 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
             <span className="font-semibold text-olive-600">{freshCount}</span> ingredienti freschi
           </p>
         </div>
-        <div className="relative flex-1 sm:flex-none sm:w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Cerca..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 w-full"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 sm:flex-none">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cerca..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 w-full sm:w-44"
+            />
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-1.5 bg-olive-600 hover:bg-olive-700 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm shrink-0 active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            Aggiungi
+          </button>
+          <button
+            onClick={() => setShowMealModal(true)}
+            className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm shrink-0 active:scale-95"
+          >
+            <UtensilsCrossed className="w-4 h-4" />
+            Mangiato
+          </button>
         </div>
-      </div>
-
-      {/* Action buttons row */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex-1 inline-flex items-center justify-center gap-2 bg-olive-600 hover:bg-olive-700 text-white py-3 rounded-xl text-sm font-semibold transition-colors shadow-sm active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          Aggiungi al frigo
-        </button>
-        <button
-          onClick={() => setShowMealModal(true)}
-          className="flex-1 inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors shadow-sm active:scale-95"
-        >
-          <UtensilsCrossed className="w-4 h-4" />
-          Ho mangiato
-        </button>
       </div>
 
       {/* View toggle */}
