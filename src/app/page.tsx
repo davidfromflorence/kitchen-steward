@@ -1,428 +1,330 @@
-import { Leaf, BarChart3, Users, MessageCircle } from 'lucide-react'
+import {
+  Leaf,
+  Refrigerator,
+  Users,
+  MessageCircle,
+  ChefHat,
+  TrendingDown,
+  ShoppingCart,
+  Sparkles,
+  ArrowRight,
+  Check,
+  Repeat,
+  Smartphone,
+} from 'lucide-react'
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-cream">
-      {/* ───── Navbar ───── */}
-      <nav className="flex items-center justify-between px-6 md:px-16 py-5 max-w-7xl mx-auto">
+      {/* Navbar */}
+      <nav className="flex items-center justify-between px-5 md:px-16 py-4 max-w-7xl mx-auto">
         <a href="/" className="flex items-center gap-2">
-          <Leaf className="w-7 h-7 text-olive-600" />
-          <span className="text-lg font-bold text-slate-900">
-            Kitchen Steward
-          </span>
+          <div className="w-8 h-8 bg-olive-600 rounded-lg flex items-center justify-center">
+            <Leaf className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-lg font-bold text-slate-900">Kitchen Steward</span>
         </a>
-
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-          <a href="#features" className="hover:text-slate-900 transition-colors">
-            Features
-          </a>
-          <a href="#impact" className="hover:text-slate-900 transition-colors">
-            Impact
-          </a>
-          <a href="#pricing" className="hover:text-slate-900 transition-colors">
-            Pricing
-          </a>
+          <a href="#come-funziona" className="hover:text-slate-900 transition-colors">Come funziona</a>
+          <a href="#funzionalita" className="hover:text-slate-900 transition-colors">Funzionalità</a>
+          <a href="#impatto" className="hover:text-slate-900 transition-colors">Impatto</a>
         </div>
-
         <a
           href="/login"
           className="bg-olive-600 text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-olive-700 active:scale-95 transition-all"
         >
-          Start Saving Now
+          Inizia gratis
         </a>
       </nav>
 
-      {/* ───── Hero ───── */}
-      <section className="max-w-7xl mx-auto px-6 md:px-16 pt-12 md:pt-20 pb-16 md:pb-28">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          {/* Left */}
-          <div>
-            <span className="text-xs font-bold tracking-[0.2em] uppercase text-olive-600">
-              Eco-Conscious Living
-            </span>
-            <h1 className="mt-4 text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.1] text-slate-900">
-              Zero Waste,
-              <br />
-              <span className="italic font-light text-slate-700">
-                Max Taste
-              </span>
-            </h1>
-            <p className="mt-6 text-slate-500 text-base md:text-lg max-w-md leading-relaxed">
-              Master your kitchen with AI-driven inventory management. Reduce
-              food waste and save money with elite precision and eco-conscious
-              elegance.
-            </p>
-            <div className="mt-8 flex items-center gap-4">
-              <a
-                href="/login"
-                className="bg-olive-600 text-white font-semibold px-7 py-3.5 rounded-xl hover:bg-olive-700 active:scale-95 transition-all text-sm"
-              >
-                Start Saving Now
-              </a>
-              <a
-                href="#features"
-                className="border border-slate-300 text-slate-700 font-semibold px-7 py-3.5 rounded-xl hover:bg-white transition-all text-sm"
-              >
-                How it works
-              </a>
-            </div>
+      {/* Hero */}
+      <section className="max-w-7xl mx-auto px-5 md:px-16 pt-16 md:pt-24 pb-20 md:pb-32">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 bg-olive-100 text-olive-700 text-xs font-bold px-4 py-1.5 rounded-full mb-6">
+            <Sparkles className="w-3.5 h-3.5" />
+            Alimentato da intelligenza artificiale
           </div>
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.05] text-slate-900">
+            Il tuo frigo,
+            <br />
+            <span className="bg-gradient-to-r from-olive-600 to-emerald-500 bg-clip-text text-transparent">
+              zero sprechi
+            </span>
+          </h1>
+          <p className="mt-6 text-slate-500 text-lg md:text-xl max-w-xl mx-auto leading-relaxed">
+            Kitchen Steward gestisce il tuo frigo con l&apos;AI. Sai cosa hai, cosa scade, cosa cucinare e cosa comprare. Tutto via WhatsApp o dall&apos;app.
+          </p>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="/login"
+              className="w-full sm:w-auto bg-olive-600 text-white font-semibold px-8 py-4 rounded-xl hover:bg-olive-700 active:scale-95 transition-all text-base inline-flex items-center justify-center gap-2"
+            >
+              Inizia gratis <ArrowRight className="w-4 h-4" />
+            </a>
+            <a
+              href="#come-funziona"
+              className="w-full sm:w-auto border border-slate-300 text-slate-700 font-semibold px-8 py-4 rounded-xl hover:bg-white transition-all text-base inline-flex items-center justify-center gap-2"
+            >
+              Scopri come funziona
+            </a>
+          </div>
+          <p className="mt-4 text-xs text-slate-400">Gratis per sempre. Nessuna carta richiesta.</p>
+        </div>
 
-          {/* Right — Hero image */}
-          <div className="relative">
-            <div className="bg-olive-900 rounded-3xl overflow-hidden aspect-[4/3] flex items-end justify-center">
-              {/* Placeholder fridge visual */}
-              <div className="w-full h-full bg-gradient-to-b from-olive-800 to-olive-900 flex items-center justify-center">
-                <div className="relative w-44 md:w-56">
-                  {/* Stylized fridge SVG */}
-                  <svg
-                    viewBox="0 0 200 320"
-                    fill="none"
-                    className="w-full drop-shadow-2xl"
-                  >
-                    {/* Fridge body */}
-                    <rect
-                      x="20"
-                      y="10"
-                      width="160"
-                      height="300"
-                      rx="12"
-                      fill="#e8e8e0"
-                      stroke="#ccc"
-                      strokeWidth="2"
-                    />
-                    {/* Top door */}
-                    <rect
-                      x="24"
-                      y="14"
-                      width="152"
-                      height="110"
-                      rx="8"
-                      fill="#f5f5ef"
-                    />
-                    {/* Bottom door */}
-                    <rect
-                      x="24"
-                      y="130"
-                      width="152"
-                      height="176"
-                      rx="8"
-                      fill="#f0f0ea"
-                    />
-                    {/* Handle top */}
-                    <rect
-                      x="155"
-                      y="55"
-                      width="4"
-                      height="30"
-                      rx="2"
-                      fill="#bbb"
-                    />
-                    {/* Handle bottom */}
-                    <rect
-                      x="155"
-                      y="200"
-                      width="4"
-                      height="40"
-                      rx="2"
-                      fill="#bbb"
-                    />
-                    {/* Shelves visible */}
-                    <rect
-                      x="35"
-                      y="160"
-                      width="130"
-                      height="2"
-                      fill="#ddd"
-                    />
-                    <rect
-                      x="35"
-                      y="210"
-                      width="130"
-                      height="2"
-                      fill="#ddd"
-                    />
-                    <rect
-                      x="35"
-                      y="260"
-                      width="130"
-                      height="2"
-                      fill="#ddd"
-                    />
-                    {/* Items on shelves */}
-                    <circle cx="60" cy="185" r="10" fill="#8BC34A" />
-                    <circle cx="90" cy="185" r="10" fill="#FF9800" />
-                    <circle cx="120" cy="185" r="8" fill="#F44336" />
-                    <rect
-                      x="50"
-                      y="225"
-                      width="20"
-                      height="25"
-                      rx="3"
-                      fill="#42A5F5"
-                    />
-                    <rect
-                      x="80"
-                      y="228"
-                      width="25"
-                      height="22"
-                      rx="3"
-                      fill="#FFEB3B"
-                    />
-                    <rect
-                      x="115"
-                      y="225"
-                      width="18"
-                      height="25"
-                      rx="3"
-                      fill="#E8F5E9"
-                    />
-                  </svg>
+        {/* Hero visual — WhatsApp chat mockup */}
+        <div className="mt-16 max-w-sm mx-auto">
+          <div className="bg-[#ECE5DD] rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+            {/* WA header */}
+            <div className="bg-[#075E54] px-4 py-3 flex items-center gap-3">
+              <div className="w-8 h-8 bg-olive-400 rounded-full flex items-center justify-center">
+                <Leaf className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-white text-sm font-semibold">Kitchen Steward</p>
+                <p className="text-emerald-200 text-[10px]">online</p>
+              </div>
+            </div>
+            {/* Messages */}
+            <div className="px-3 py-4 space-y-2">
+              <div className="flex justify-end">
+                <div className="bg-[#DCF8C6] rounded-xl rounded-tr-sm px-3 py-2 max-w-[80%]">
+                  <p className="text-sm text-slate-800">Cosa cucino stasera? 🍝</p>
+                  <p className="text-[10px] text-slate-500 text-right mt-0.5">13:42</p>
+                </div>
+              </div>
+              <div className="flex justify-start">
+                <div className="bg-white rounded-xl rounded-tl-sm px-3 py-2 max-w-[85%] shadow-sm">
+                  <p className="text-sm text-slate-800">
+                    🍽️ Ecco 3 idee dal tuo frigo:
+                  </p>
+                  <p className="text-sm text-slate-800 mt-1">
+                    1️⃣ <strong>Pasta al pesto</strong> — 15 min<br />
+                    2️⃣ <strong>Frittata di verdure</strong> — 10 min<br />
+                    3️⃣ <strong>Bruschette</strong> — 5 min
+                  </p>
+                  <p className="text-[10px] text-slate-500 text-right mt-1">13:42</p>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <div className="bg-[#DCF8C6] rounded-xl rounded-tr-sm px-3 py-2">
+                  <p className="text-sm text-slate-800">2</p>
+                  <p className="text-[10px] text-slate-500 text-right mt-0.5">13:43</p>
                 </div>
               </div>
             </div>
-
-            {/* Floating badge */}
-            <div className="absolute bottom-6 right-6 bg-white rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3">
-              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Inventory Health
-                </p>
-                <p className="text-sm font-bold text-slate-900">
-                  98% Efficient
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* ───── Features ───── */}
-      <section id="features" className="py-20 md:py-28 bg-cream">
-        <div className="max-w-7xl mx-auto px-6 md:px-16">
+      {/* Come funziona */}
+      <section id="come-funziona" className="py-20 md:py-28 bg-white">
+        <div className="max-w-7xl mx-auto px-5 md:px-16">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
-              Smarter Kitchen, Better Planet
+              Come funziona
             </h2>
             <p className="mt-4 text-slate-500 max-w-lg mx-auto">
-              Designed for elite households who value efficiency and
-              sustainability.
+              Tre passi per un frigo senza sprechi
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* AI Inventory */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-              <div className="w-12 h-12 bg-olive-100 rounded-xl flex items-center justify-center mb-5">
-                <BarChart3 className="w-6 h-6 text-olive-600" />
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="text-center p-8">
+              <div className="w-16 h-16 bg-olive-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <span className="text-2xl font-bold text-olive-600">1</span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">
-                AI Inventory
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Aggiungi al frigo</h3>
               <p className="text-sm text-slate-500 leading-relaxed">
-                Real-time tracking of your ingredients with smart expiry alerts.
-                Our neural engine predicts your usage patterns.
+                Scrivi su WhatsApp cosa hai comprato, o usa l&apos;app. L&apos;AI riconosce i prodotti e calcola le scadenze.
               </p>
             </div>
-
-            {/* Family Sharing */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-              <div className="w-12 h-12 bg-olive-100 rounded-xl flex items-center justify-center mb-5">
-                <Users className="w-6 h-6 text-olive-600" />
+            <div className="text-center p-8">
+              <div className="w-16 h-16 bg-olive-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <span className="text-2xl font-bold text-olive-600">2</span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">
-                Family Sharing
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Cucina senza sprechi</h3>
               <p className="text-sm text-slate-500 leading-relaxed">
-                Coordinate grocery runs and meal plans with everyone in the
-                house. Shared lists that update in real time across all devices.
+                Chiedi una ricetta e l&apos;AI ti propone piatti con gli ingredienti che scadono prima. Dì cosa hai mangiato e il frigo si aggiorna.
               </p>
             </div>
-
-            {/* WhatsApp Sync */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-              <div className="w-12 h-12 bg-olive-100 rounded-xl flex items-center justify-center mb-5">
-                <MessageCircle className="w-6 h-6 text-olive-600" />
+            <div className="text-center p-8">
+              <div className="w-16 h-16 bg-olive-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <span className="text-2xl font-bold text-olive-600">3</span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">
-                WhatsApp Sync
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Risparmia e condividi</h3>
               <p className="text-sm text-slate-500 leading-relaxed">
-                Get shopping lists and recipe ideas sent directly to your
-                favorite chat app. No new apps needed for the daily routine.
+                Report settimanale con risparmi e CO₂ evitata. Condividi il frigo con tutta la famiglia.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ───── Impact Stats ───── */}
-      <section id="impact" className="py-20 md:py-28 bg-cream">
-        <div className="max-w-7xl mx-auto px-6 md:px-16">
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Food Waste Saved */}
-            <div className="bg-cream-dark rounded-3xl p-8 border border-slate-200/60">
-              <p className="text-[10px] font-bold text-olive-600 uppercase tracking-[0.2em] mb-4">
-                Food Waste Saved
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold text-slate-900">35%</span>
-                <span className="text-sm font-semibold text-emerald-600">
-                  +12%
-                </span>
-              </div>
-              <p className="mt-3 text-xs text-slate-500 leading-relaxed">
-                Average reduction in household food waste within 3 months.
-              </p>
-            </div>
-
-            {/* Average Savings */}
-            <div className="bg-cream-dark rounded-3xl p-8 border border-slate-200/60">
-              <p className="text-[10px] font-bold text-olive-600 uppercase tracking-[0.2em] mb-4">
-                Average Savings
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold text-slate-900">
-                  &pound;1,200
-                </span>
-                <span className="text-sm font-semibold text-emerald-600">
-                  +8%
-                </span>
-              </div>
-              <p className="mt-3 text-xs text-slate-500 leading-relaxed">
-                Annual savings on unnecessary grocery purchases per household.
-              </p>
-            </div>
-
-            {/* Active Stewards */}
-            <div className="bg-cream-dark rounded-3xl p-8 border border-slate-200/60">
-              <p className="text-[10px] font-bold text-olive-600 uppercase tracking-[0.2em] mb-4">
-                Active Stewards
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold text-slate-900">50k+</span>
-                <span className="text-sm font-semibold text-emerald-600">
-                  +15%
-                </span>
-              </div>
-              <p className="mt-3 text-xs text-slate-500 leading-relaxed">
-                Global community committed to a zero-waste culinary lifestyle.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ───── CTA ───── */}
-      <section className="py-20 md:py-28">
-        <div className="max-w-7xl mx-auto px-6 md:px-16">
-          <div className="bg-olive-50 rounded-[2rem] py-16 md:py-24 px-8 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold text-slate-900 leading-tight">
-              Join the Elite
-              <br />
-              Movement
+      {/* Funzionalità */}
+      <section id="funzionalita" className="py-20 md:py-28 bg-cream">
+        <div className="max-w-7xl mx-auto px-5 md:px-16">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
+              Tutto ciò che ti serve
             </h2>
-            <p className="mt-6 text-slate-500 max-w-md mx-auto">
-              Your kitchen, optimized for the planet and your pocket. Start your
-              journey towards a zero-waste lifestyle today.
+            <p className="mt-4 text-slate-500 max-w-lg mx-auto">
+              Un assistente di cucina completo, nel tuo WhatsApp
             </p>
-            <a
-              href="/login"
-              className="inline-block mt-8 bg-olive-600 text-white font-semibold px-8 py-4 rounded-xl hover:bg-olive-700 active:scale-95 transition-all"
-            >
-              Get Started Now
-            </a>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { icon: Refrigerator, title: 'Frigo smart', desc: 'Inventario in tempo reale con zone (frigo, freezer, dispensa) e scadenze automatiche per ogni prodotto.' },
+              { icon: MessageCircle, title: 'Chat WhatsApp', desc: '"Cosa c\'è nel frigo?" "Ho mangiato pasta al pesto" — parla naturale, il bot capisce e aggiorna.' },
+              { icon: ChefHat, title: 'Ricette AI', desc: '3 proposte basate su ciò che hai, con priorità a cosa scade. Scegli e cucina.' },
+              { icon: ShoppingCart, title: 'Lista della spesa', desc: 'Generata automaticamente da ciò che manca. Formato Google Keep con checkbox.' },
+              { icon: Users, title: 'Condivisione famiglia', desc: 'Un frigo per tutta la famiglia. Notifiche quando qualcuno aggiunge o consuma prodotti.' },
+              { icon: Repeat, title: 'Abitudini', desc: '"Ogni mattina caffè e biscotti" — il frigo si aggiorna automaticamente ogni giorno.' },
+              { icon: TrendingDown, title: 'Meno sprechi', desc: 'Alert scadenze, suggerimenti anti-spreco, report settimanale con soldi risparmiati e CO₂ evitata.' },
+              { icon: Smartphone, title: 'Meal planning', desc: 'Pianifica pranzi e cene della settimana. La spesa si genera da sola.' },
+              { icon: Sparkles, title: 'Zero effort', desc: 'Niente codici a barre, niente foto obbligatorie. Scrivi cosa hai comprato e basta.' },
+            ].map((f) => (
+              <div key={f.title} className="bg-white p-6 rounded-2xl border border-slate-200 hover:shadow-md hover:border-olive-200 transition-all">
+                <div className="w-10 h-10 bg-olive-50 rounded-xl flex items-center justify-center mb-4">
+                  <f.icon className="w-5 h-5 text-olive-600" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900 mb-1">{f.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ───── Footer ───── */}
-      <footer className="border-t border-slate-200 py-12">
-        <div className="max-w-7xl mx-auto px-6 md:px-16 grid grid-cols-2 md:grid-cols-4 gap-8">
-          {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
-            <a href="/" className="flex items-center gap-2 mb-3">
-              <Leaf className="w-5 h-5 text-olive-600" />
-              <span className="font-bold text-slate-900">Kitchen Steward</span>
-            </a>
-            <p className="text-xs text-slate-500 leading-relaxed max-w-[200px]">
-              Elevating the modern household through intelligent stewardship and
-              sustainable habits.
+      {/* Impatto */}
+      <section id="impatto" className="py-20 md:py-28 bg-white">
+        <div className="max-w-7xl mx-auto px-5 md:px-16">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
+              Il tuo impatto conta
+            </h2>
+            <p className="mt-4 text-slate-500 max-w-lg mx-auto">
+              Ogni famiglia che riduce lo spreco fa la differenza
             </p>
           </div>
 
-          {/* Platform */}
-          <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
-              Platform
-            </h4>
-            <ul className="space-y-2 text-sm text-slate-600">
-              <li>
-                <a href="#features" className="hover:text-slate-900">
-                  AI Inventory
-                </a>
-              </li>
-              <li>
-                <a href="#features" className="hover:text-slate-900">
-                  Family Sharing
-                </a>
-              </li>
-              <li>
-                <a href="#features" className="hover:text-slate-900">
-                  Integrations
-                </a>
-              </li>
-            </ul>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-br from-olive-50 to-emerald-50 rounded-2xl p-8 border border-olive-200/50 text-center">
+              <p className="text-5xl md:text-6xl font-bold text-slate-900">35%</p>
+              <p className="text-sm text-slate-500 mt-2">Riduzione media dello spreco alimentare in 3 mesi</p>
+            </div>
+            <div className="bg-gradient-to-br from-sky-50 to-blue-50 rounded-2xl p-8 border border-sky-200/50 text-center">
+              <p className="text-5xl md:text-6xl font-bold text-slate-900">€1.200</p>
+              <p className="text-sm text-slate-500 mt-2">Risparmio annuo medio per famiglia sulla spesa</p>
+            </div>
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-8 border border-amber-200/50 text-center">
+              <p className="text-5xl md:text-6xl font-bold text-slate-900">140kg</p>
+              <p className="text-sm text-slate-500 mt-2">CO₂ risparmiata all&apos;anno per famiglia</p>
+            </div>
           </div>
+        </div>
+      </section>
 
-          {/* Company */}
-          <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
-              Company
-            </h4>
-            <ul className="space-y-2 text-sm text-slate-600">
-              <li>
-                <a href="#" className="hover:text-slate-900">
-                  Our Mission
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-slate-900">
-                  Privacy Policy
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-slate-900">
-                  Terms of Service
-                </a>
-              </li>
-            </ul>
+      {/* Social proof */}
+      <section className="py-16 bg-cream">
+        <div className="max-w-7xl mx-auto px-5 md:px-16">
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              { quote: 'Da quando uso Kitchen Steward non butto più niente. Il report settimanale mi motiva tantissimo.', name: 'Laura M.', role: 'Mamma di 3' },
+              { quote: 'La chat WhatsApp è geniale. Scrivo cosa ho comprato e il frigo si aggiorna. Zero fatica.', name: 'Marco T.', role: 'Chef amatoriale' },
+              { quote: 'Finalmente tutta la famiglia sa cosa c\'è nel frigo. Niente più doppioni al supermercato.', name: 'Giulia R.', role: 'Studentessa' },
+            ].map((t) => (
+              <div key={t.name} className="bg-white p-6 rounded-2xl border border-slate-200">
+                <div className="flex gap-1 mb-3">
+                  {[1,2,3,4,5].map(i => <span key={i} className="text-amber-400 text-sm">★</span>)}
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed italic">&ldquo;{t.quote}&rdquo;</p>
+                <div className="mt-4 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-olive-100 flex items-center justify-center text-xs font-bold text-olive-600">
+                    {t.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">{t.name}</p>
+                    <p className="text-xs text-slate-400">{t.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+      </section>
 
-          {/* Connect */}
-          <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
-              Connect
-            </h4>
-            <div className="flex items-center gap-3 text-slate-500">
-              <a href="#" className="hover:text-slate-900">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M22.46 6c-.85.38-1.78.64-2.73.76 1-.6 1.76-1.54 2.12-2.67-.93.55-1.96.95-3.06 1.17A4.77 4.77 0 0015.37 4c-2.65 0-4.79 2.15-4.79 4.8 0 .37.04.74.13 1.1C7.09 9.7 3.88 7.8 1.67 4.9a4.8 4.8 0 001.48 6.4 4.74 4.74 0 01-2.17-.6v.06c0 2.33 1.65 4.27 3.85 4.71a4.79 4.79 0 01-2.16.08 4.8 4.8 0 004.47 3.33A9.6 9.6 0 010 21.54a13.5 13.5 0 007.36 2.16c8.83 0 13.66-7.32 13.66-13.67l-.02-.62A9.8 9.8 0 0024 6.56a9.57 9.57 0 01-2.54.7z" />
-                </svg>
-              </a>
-              <a href="#" className="hover:text-slate-900">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                </svg>
+      {/* CTA */}
+      <section className="py-20 md:py-28">
+        <div className="max-w-7xl mx-auto px-5 md:px-16">
+          <div className="bg-olive-600 rounded-3xl py-16 md:py-20 px-8 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent)] pointer-events-none" />
+            <h2 className="text-3xl md:text-5xl font-bold text-white leading-tight relative">
+              Pronto a non sprecare
+              <br />
+              più niente?
+            </h2>
+            <p className="mt-6 text-olive-100 max-w-md mx-auto relative">
+              Unisciti alle famiglie che risparmiano tempo, soldi e cibo ogni giorno.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 relative">
+              <a
+                href="/login"
+                className="w-full sm:w-auto bg-white text-olive-700 font-semibold px-8 py-4 rounded-xl hover:bg-olive-50 active:scale-95 transition-all text-base inline-flex items-center justify-center gap-2"
+              >
+                Crea il tuo account gratis <ArrowRight className="w-4 h-4" />
               </a>
             </div>
-            <p className="mt-6 text-[10px] text-slate-400">
-              &copy; 2024 Kitchen Steward. All rights reserved.
+            <div className="mt-6 flex items-center justify-center gap-6 text-olive-200 text-xs relative">
+              <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Gratis per sempre</span>
+              <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> WhatsApp incluso</span>
+              <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Nessuna carta</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200 py-10">
+        <div className="max-w-7xl mx-auto px-5 md:px-16">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-olive-600 rounded-lg flex items-center justify-center">
+                <Leaf className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-slate-900">Kitchen Steward</span>
+            </div>
+            <div className="flex items-center gap-6 text-sm text-slate-500">
+              <a href="#" className="hover:text-slate-900 transition-colors">Privacy</a>
+              <a href="#" className="hover:text-slate-900 transition-colors">Termini</a>
+              <a href="#" className="hover:text-slate-900 transition-colors">Contatti</a>
+            </div>
+            <p className="text-xs text-slate-400">
+              &copy; 2026 Kitchen Steward. Tutti i diritti riservati.
             </p>
           </div>
         </div>
       </footer>
+
+      {/* JSON-LD structured data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'Kitchen Steward',
+            applicationCategory: 'LifestyleApplication',
+            operatingSystem: 'Web',
+            description: 'Gestisci il frigo con l\'AI, riduci gli sprechi alimentari, risparmia sulla spesa. Chat WhatsApp integrata.',
+            offers: {
+              '@type': 'Offer',
+              price: '0',
+              priceCurrency: 'EUR',
+            },
+          }),
+        }}
+      />
     </div>
   )
 }
