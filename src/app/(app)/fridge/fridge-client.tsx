@@ -415,39 +415,46 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
                     <div className="p-3">
                       <h3 className="font-bold text-slate-800 text-sm truncate">{item.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">{item.quantity} {item.unit}</p>
-                      {badge && editingExpiryId === item.id ? (
-                        <div className="mt-1.5 flex items-center gap-1">
-                          <input
-                            type="date"
-                            value={editingExpiryDate}
-                            onChange={(e) => setEditingExpiryDate(e.target.value)}
-                            className="text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-olive-500"
-                          />
-                          <button
-                            onClick={() => handleUpdateExpiry(item.id, editingExpiryDate)}
-                            className="text-olive-600 hover:bg-olive-50 p-1 rounded"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setEditingExpiryId(null)}
-                            className="text-slate-400 hover:bg-slate-50 p-1 rounded"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : badge ? (
-                        <button
-                          onClick={() => {
-                            setEditingExpiryId(item.id)
-                            setEditingExpiryDate(item.expiry_date?.split('T')[0] || '')
-                          }}
-                          className={`inline-flex items-center gap-1 mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.className} hover:opacity-80 transition-opacity`}
-                        >
-                          {badge.label}
-                          <CalendarDays className="w-2.5 h-2.5" />
-                        </button>
-                      ) : null}
+                      {badge && (
+                        editingExpiryId === item.id ? (
+                          <div className="mt-1.5 flex items-center gap-1">
+                            <input
+                              type="date"
+                              value={editingExpiryDate}
+                              onChange={(e) => setEditingExpiryDate(e.target.value)}
+                              className="text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-olive-500"
+                            />
+                            <button
+                              onClick={() => handleUpdateExpiry(item.id, editingExpiryDate)}
+                              className="text-olive-600 hover:bg-olive-50 p-1 rounded"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditingExpiryId(null)}
+                              className="text-slate-400 hover:bg-slate-50 p-1 rounded"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.className}`}>
+                              {badge.label}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setEditingExpiryId(item.id)
+                                setEditingExpiryDate(item.expiry_date?.split('T')[0] || '')
+                              }}
+                              className="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                              title="Modifica scadenza"
+                            >
+                              <CalendarDays className="w-3 h-3 text-slate-500" />
+                            </button>
+                          </div>
+                        )
+                      )}
                       {/* Always-visible action buttons */}
                       <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100">
                         <form action={(fd) => handleAction(fd, useItem)} className="flex-1">
