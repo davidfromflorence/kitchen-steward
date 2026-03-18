@@ -1,20 +1,29 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+
+function getAdmin() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 async function getAuthAndHousehold() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  const { data: profile } = await supabase
+  const admin = getAdmin()
+  const { data: profile } = await admin
     .from('users')
     .select('household_id')
     .eq('id', user.id)
     .single()
   if (!profile?.household_id) redirect('/setup')
-  return { supabase, userId: user.id, householdId: profile.household_id }
+  return { admin, userId: user.id, householdId: profile.household_id }
 }
 
 export interface HabitItem {
@@ -38,10 +47,10 @@ export async function createHabitFromDescription(description: string): Promise<{
   error?: string
   habit?: { description: string; items: HabitItem[]; suggestedFrequency: string; suggestedTimes: number }
 }> {
-  const { supabase, householdId } = await getAuthAndHousehold()
+  const { admin, householdId } = await getAuthAndHousehold()
 
   // Get inventory for context
-  const { data: inventory } = await supabase
+  const { data: inventory } = await admin
     .from('inventory_items')
     .select('name, quantity, unit')
     .eq('household_id', householdId)
@@ -98,9 +107,9 @@ export async function saveHabit(
   frequency: string,
   timesPerPeriod: number,
 ) {
-  const { supabase, userId, householdId } = await getAuthAndHousehold()
+  const { admin, userId, householdId } = await getAuthAndHousehold()
 
-  const { error } = await supabase.from('habits').insert({
+  const { error } = await admin.from('habits').insert({
     household_id: householdId,
     user_id: userId,
     description,
@@ -121,9 +130,9 @@ export async function saveHabit(
 }
 
 export async function getHabits(): Promise<Habit[]> {
-  const { supabase, householdId } = await getAuthAndHousehold()
+  const { admin, householdId } = await getAuthAndHousehold()
 
-  const { data } = await supabase
+  const { data } = await admin
     .from('habits')
     .select('*')
     .eq('household_id', householdId)
@@ -134,8 +143,8 @@ export async function getHabits(): Promise<Habit[]> {
 }
 
 export async function deleteHabit(id: string) {
-  const { supabase } = await getAuthAndHousehold()
-  await supabase.from('habits').update({ active: false }).eq('id', id)
+  const { admin } = await getAuthAndHousehold()
+  await admin.from('habits').update({ active: false }).eq('id', id)
   revalidatePath('/fridge')
   revalidatePath('/dashboard')
   return { success: true }
