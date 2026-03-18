@@ -75,6 +75,10 @@ export default function ShoppingClient({
   const [showAddForm, setShowAddForm] = useState(false)
   const [addName, setAddName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [receiptText, setReceiptText] = useState('')
+  const [receiptLoading, setReceiptLoading] = useState(false)
+  const [receiptResult, setReceiptResult] = useState<{ matched: string[]; missing: string[]; message: string } | null>(null)
   const [optimisticChecked, setOptimisticChecked] = useState<Set<string>>(new Set())
   const [optimisticUnchecked, setOptimisticUnchecked] = useState<Set<string>>(new Set())
 
@@ -193,6 +197,35 @@ export default function ShoppingClient({
     await addShoppingItem(fd)
     setAddName('')
     setShowAddForm(false)
+  }
+
+  async function handleReceiptCheck() {
+    if (!receiptText.trim() || receiptLoading) return
+    setReceiptLoading(true)
+    setReceiptResult(null)
+    try {
+      const listNames = unchecked.map(i => i.name)
+      const res = await fetch('/api/ai/receipt-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receipt: receiptText.trim(), shoppingList: listNames }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      const data = await res.json()
+      setReceiptResult(data)
+
+      // Auto-check matched items
+      if (data.matched?.length > 0) {
+        for (const name of data.matched) {
+          const item = unchecked.find(i => i.name.toLowerCase() === name.toLowerCase())
+          if (item) handleToggle(item.id, false)
+        }
+      }
+    } catch {
+      setReceiptResult({ matched: [], missing: [], message: 'Errore nella verifica. Riprova.' })
+    } finally {
+      setReceiptLoading(false)
+    }
   }
 
   return (
@@ -407,6 +440,76 @@ export default function ShoppingClient({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Receipt check */}
+      {unchecked.length > 0 && (
+        <div className="mb-4">
+          {!showReceipt ? (
+            <button
+              onClick={() => setShowReceipt(true)}
+              className="w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 text-sm font-semibold text-slate-500 hover:border-olive-400 hover:text-olive-600 transition-colors flex items-center justify-center gap-2"
+            >
+              🧾 Verifica scontrino
+            </button>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-800">🧾 Verifica scontrino</h2>
+                <button onClick={() => { setShowReceipt(false); setReceiptResult(null) }} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-4 space-y-3">
+                <p className="text-xs text-slate-500">
+                  Scrivi o incolla cosa hai comprato e ti dico se manca qualcosa dalla lista.
+                </p>
+                <textarea
+                  value={receiptText}
+                  onChange={(e) => setReceiptText(e.target.value)}
+                  placeholder={"Es: pollo, latte, pane integrale, mozzarella, zucchine, uova..."}
+                  rows={3}
+                  className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-olive-500 resize-none"
+                />
+                <button
+                  onClick={handleReceiptCheck}
+                  disabled={!receiptText.trim() || receiptLoading}
+                  className="w-full bg-olive-600 hover:bg-olive-700 text-white rounded-xl py-2.5 text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {receiptLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifico...</> : <><Check className="w-4 h-4" /> Verifica</>}
+                </button>
+
+                {receiptResult && (
+                  <div className={`rounded-xl p-4 ${receiptResult.missing.length === 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
+                    <p className={`text-sm font-semibold mb-2 ${receiptResult.missing.length === 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {receiptResult.message}
+                    </p>
+                    {receiptResult.matched.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Comprati ✓</p>
+                        <div className="flex flex-wrap gap-1">
+                          {receiptResult.matched.map(m => (
+                            <span key={m} className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{m}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {receiptResult.missing.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Mancanti ✗</p>
+                        <div className="flex flex-wrap gap-1">
+                          {receiptResult.missing.map(m => (
+                            <span key={m} className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{m}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
