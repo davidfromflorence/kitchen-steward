@@ -14,12 +14,15 @@ import {
   Archive,
   GripVertical,
   UtensilsCrossed,
-  Send,
   Loader2,
   Check,
   X,
+  Repeat,
+  Pause,
 } from 'lucide-react'
 import { deleteItem, useItem, moveItem, logMeal } from '@/app/actions/inventory'
+import { createHabitFromDescription, saveHabit, getHabits, deleteHabit } from '@/app/actions/habits'
+import type { HabitItem, Habit } from '@/app/actions/habits'
 import AddItemModal from './add-item-modal'
 
 interface InventoryItem {
@@ -136,9 +139,18 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   const [mealLoading, setMealLoading] = useState(false)
   const [showMealModal, setShowMealModal] = useState(false)
   const [mealResult, setMealResult] = useState<{ used: Array<{ name: string; subtracted: number; unit: string; removed: boolean }>; error?: string } | null>(null)
+  // Habits
+  const [showHabitModal, setShowHabitModal] = useState(false)
+  const [habitInput, setHabitInput] = useState('')
+  const [habitLoading, setHabitLoading] = useState(false)
+  const [habitStep, setHabitStep] = useState<'input' | 'confirm' | 'list'>('input')
+  const [habitDraft, setHabitDraft] = useState<{ description: string; items: HabitItem[]; frequency: string; times: number } | null>(null)
+  const [habitList, setHabitList] = useState<Habit[]>([])
+  const [habitError, setHabitError] = useState<string | null>(null)
 
   useEffect(() => {
     if (searchParams.get('add') === 'true') setShowAddModal(true)
+    if (searchParams.get('habit') === 'true') openHabitModal()
   }, [searchParams])
 
   const freshCount = items.filter((i) => !i.expiry_date || daysUntilExpiry(i.expiry_date) > 0).length
@@ -167,6 +179,69 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
     } finally {
       setMealLoading(false)
     }
+  }
+
+  async function openHabitModal() {
+    setShowHabitModal(true)
+    setHabitStep('input')
+    setHabitDraft(null)
+    setHabitError(null)
+    setHabitInput('')
+    // Load existing habits
+    try {
+      const habits = await getHabits()
+      setHabitList(habits)
+    } catch { /* ignore */ }
+  }
+
+  async function handleAnalyzeHabit() {
+    if (!habitInput.trim() || habitLoading) return
+    setHabitLoading(true)
+    setHabitError(null)
+    try {
+      const result = await createHabitFromDescription(habitInput.trim())
+      if (result.error) {
+        setHabitError(result.error)
+      } else if (result.habit) {
+        setHabitDraft({
+          description: result.habit.description,
+          items: result.habit.items,
+          frequency: result.habit.suggestedFrequency,
+          times: result.habit.suggestedTimes,
+        })
+        setHabitStep('confirm')
+      }
+    } catch {
+      setHabitError('Errore. Riprova.')
+    } finally {
+      setHabitLoading(false)
+    }
+  }
+
+  async function handleSaveHabit() {
+    if (!habitDraft || habitLoading) return
+    setHabitLoading(true)
+    try {
+      const result = await saveHabit(habitDraft.description, habitDraft.items, habitDraft.frequency, habitDraft.times)
+      if (result.error) {
+        setHabitError(result.error)
+      } else {
+        setHabitStep('input')
+        setHabitDraft(null)
+        setHabitInput('')
+        const habits = await getHabits()
+        setHabitList(habits)
+      }
+    } catch {
+      setHabitError('Errore nel salvataggio.')
+    } finally {
+      setHabitLoading(false)
+    }
+  }
+
+  async function handleDeleteHabit(id: string) {
+    await deleteHabit(id)
+    setHabitList(prev => prev.filter(h => h.id !== id))
   }
 
   async function handleAction(formData: FormData, action: typeof deleteItem | typeof useItem) {
@@ -241,6 +316,13 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
           >
             <Plus className="w-4 h-4" />
             Aggiungi
+          </button>
+          <button
+            onClick={openHabitModal}
+            className="inline-flex items-center gap-1.5 bg-violet-500 hover:bg-violet-600 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm shrink-0 active:scale-95"
+          >
+            <Repeat className="w-4 h-4" />
+            Abitudine
           </button>
           <button
             onClick={() => setShowMealModal(true)}
@@ -586,6 +668,171 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
                 Chiudi
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Habit Modal */}
+      {showHabitModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => !habitLoading && setShowHabitModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md p-5 pb-8 sm:pb-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
+                <Repeat className="w-5 h-5 text-violet-500" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Abitudini</h3>
+                <p className="text-xs text-slate-500">Consumi ricorrenti che aggiorno automaticamente</p>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setHabitStep('input')}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${habitStep !== 'list' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-600'}`}
+              >
+                Nuova
+              </button>
+              <button
+                onClick={async () => { setHabitStep('list'); try { setHabitList(await getHabits()) } catch {} }}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${habitStep === 'list' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-600'}`}
+              >
+                Le mie ({habitList.length})
+              </button>
+            </div>
+
+            {habitError && (
+              <div className="mb-3 rounded-xl px-4 py-2 text-sm bg-red-50 border border-red-200 text-red-700 flex items-center gap-2">
+                <X className="w-4 h-4 shrink-0" /> {habitError}
+              </div>
+            )}
+
+            {/* Step 1: Input */}
+            {habitStep === 'input' && (
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text"
+                  value={habitInput}
+                  onChange={(e) => setHabitInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAnalyzeHabit()}
+                  placeholder='Es: "Ogni mattina caffè e 3 biscotti"'
+                  disabled={habitLoading}
+                  autoFocus
+                  className="w-full rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-400 transition-all text-sm"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {['Caffè e biscotti la mattina', 'Yogurt a merenda', 'Latte prima di dormire'].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setHabitInput(s)}
+                      className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleAnalyzeHabit}
+                  disabled={!habitInput.trim() || habitLoading}
+                  className="w-full bg-violet-500 hover:bg-violet-600 text-white rounded-xl py-3 font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {habitLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Repeat className="w-4 h-4" />}
+                  {habitLoading ? 'Analizzo...' : 'Analizza abitudine'}
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: Confirm */}
+            {habitStep === 'confirm' && habitDraft && (
+              <div className="flex flex-col gap-3">
+                <div className="bg-violet-50 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-violet-800 mb-2">"{habitDraft.description}"</p>
+                  <p className="text-xs font-bold text-violet-600 uppercase tracking-wider mb-2">Prodotti da scalare:</p>
+                  {habitDraft.items.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between py-1">
+                      <span className="text-sm text-slate-700">{item.name}</span>
+                      <span className="text-sm font-semibold text-slate-900">{item.qty} {item.unit}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Frequency picker */}
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Frequenza</p>
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'daily', label: 'Ogni giorno' },
+                      { value: 'twice_daily', label: '2 volte/giorno' },
+                      { value: 'weekly', label: 'Ogni settimana' },
+                    ].map((f) => (
+                      <button
+                        key={f.value}
+                        onClick={() => setHabitDraft({ ...habitDraft, frequency: f.value })}
+                        className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                          habitDraft.frequency === f.value ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setHabitStep('input'); setHabitDraft(null) }}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                  >
+                    Modifica
+                  </button>
+                  <button
+                    onClick={handleSaveHabit}
+                    disabled={habitLoading}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold bg-violet-500 text-white hover:bg-violet-600 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {habitLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    Conferma
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* List of existing habits */}
+            {habitStep === 'list' && (
+              <div className="flex flex-col gap-2">
+                {habitList.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-6">Nessuna abitudine salvata</p>
+                ) : (
+                  habitList.map((h) => (
+                    <div key={h.id} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{h.description}</p>
+                        <p className="text-xs text-slate-400">
+                          {h.items.map((item: HabitItem) => `${item.qty}${item.unit} ${item.name}`).join(', ')}
+                          {' · '}
+                          {h.frequency === 'daily' ? 'Ogni giorno' : h.frequency === 'twice_daily' ? '2x/giorno' : 'Settimanale'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteHabit(h.id)}
+                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                      >
+                        <Pause className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowHabitModal(false)}
+              disabled={habitLoading}
+              className="w-full mt-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              Chiudi
+            </button>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, UtensilsCrossed, Check, X, Loader2 } from 'lucide-react'
+import { Plus, UtensilsCrossed, Check, X, Loader2, Repeat } from 'lucide-react'
 import AddItemModal from '@/app/(app)/fridge/add-item-modal'
 import { logMeal } from '@/app/actions/inventory'
 
@@ -47,6 +47,14 @@ export default function ActionButtons() {
           <UtensilsCrossed className="w-4 h-4" />
           Mangiato
         </button>
+        <a
+          href="/fridge"
+          onClick={(e) => { e.preventDefault(); window.location.href = '/fridge?habit=true' }}
+          className="inline-flex items-center gap-1.5 bg-violet-500 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow-sm hover:bg-violet-600 active:scale-95 transition-all"
+        >
+          <Repeat className="w-4 h-4" />
+          Abitudine
+        </a>
       </div>
 
       <AddItemModal isOpen={showAdd} onClose={() => setShowAdd(false)} />
