@@ -43,42 +43,129 @@ export default function LandingPage() {
       </nav>
 
       {/* ═══ HERO ═══ */}
-      <section className="max-w-7xl mx-auto px-5 md:px-16 pt-16 md:pt-24 pb-10 md:pb-16">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-olive-100 text-olive-700 text-xs font-bold px-4 py-1.5 rounded-full mb-6">
-            <Sparkles className="w-3.5 h-3.5" />
-            Alimentato da intelligenza artificiale
+      <section className="max-w-7xl mx-auto px-5 md:px-16 pt-12 md:pt-20 pb-16 md:pb-24">
+        <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+          {/* Left — Payoff */}
+          <div>
+            <div className="inline-flex items-center gap-2 bg-olive-100 text-olive-700 text-xs font-bold px-4 py-1.5 rounded-full mb-6">
+              <Sparkles className="w-3.5 h-3.5" />
+              Alimentato da intelligenza artificiale
+            </div>
+            <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold leading-[1.05] text-slate-900">
+              Zero Waste,
+              <br />
+              <span className="bg-gradient-to-r from-olive-600 to-emerald-500 bg-clip-text text-transparent italic font-light">
+                Max Taste
+              </span>
+            </h1>
+            <p className="mt-6 text-slate-500 text-lg md:text-xl max-w-md leading-relaxed">
+              Kitchen Steward gestisce il tuo frigo con l&apos;AI. Sai cosa hai, cosa scade, cosa cucinare e cosa comprare. <strong className="text-slate-700">Tutto via WhatsApp.</strong>
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-start gap-3">
+              <a
+                href="/login"
+                className="w-full sm:w-auto bg-olive-600 text-white font-semibold px-8 py-4 rounded-xl hover:bg-olive-700 active:scale-95 transition-all text-base inline-flex items-center justify-center gap-2"
+              >
+                Inizia gratis <ArrowRight className="w-4 h-4" />
+              </a>
+              <a
+                href="#come-funziona"
+                className="w-full sm:w-auto border border-slate-300 text-slate-700 font-semibold px-8 py-4 rounded-xl hover:bg-white transition-all text-base inline-flex items-center justify-center gap-2"
+              >
+                Scopri come funziona
+              </a>
+            </div>
+            <p className="mt-4 text-xs text-slate-400">Gratis per sempre. Nessuna carta richiesta.</p>
           </div>
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.05] text-slate-900">
-            Zero Waste,
-            <br />
-            <span className="bg-gradient-to-r from-olive-600 to-emerald-500 bg-clip-text text-transparent italic font-light">
-              Max Taste
-            </span>
-          </h1>
-          <p className="mt-6 text-slate-500 text-lg md:text-xl max-w-xl mx-auto leading-relaxed">
-            Kitchen Steward gestisce il tuo frigo con l&apos;AI. Sai cosa hai, cosa scade, cosa cucinare e cosa comprare. <strong className="text-slate-700">Tutto via WhatsApp.</strong>
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href="/login"
-              className="w-full sm:w-auto bg-olive-600 text-white font-semibold px-8 py-4 rounded-xl hover:bg-olive-700 active:scale-95 transition-all text-base inline-flex items-center justify-center gap-2"
-            >
-              Inizia gratis <ArrowRight className="w-4 h-4" />
-            </a>
-            <a
-              href="#come-funziona"
-              className="w-full sm:w-auto border border-slate-300 text-slate-700 font-semibold px-8 py-4 rounded-xl hover:bg-white transition-all text-base inline-flex items-center justify-center gap-2"
-            >
-              Scopri come funziona
-            </a>
+
+          {/* Right — Fridge illustration with floating pop-out badges */}
+          <div className="relative flex justify-center">
+            {/* Main fridge */}
+            <div className="relative w-56 md:w-64">
+              <div className="bg-gradient-to-b from-white to-slate-50 rounded-3xl border-2 border-slate-200 shadow-2xl overflow-hidden">
+                {/* Freezer compartment */}
+                <div className="bg-sky-50/80 border-b-2 border-slate-200 p-4 min-h-[120px]">
+                  <div className="flex flex-wrap gap-2 content-start">
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🧀</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🥛</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🥚</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🧈</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🥣</div>
+                  </div>
+                </div>
+                {/* Main compartment */}
+                <div className="p-4 min-h-[200px]">
+                  <div className="flex flex-wrap gap-2 content-start">
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🥬</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🍅</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🥩</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🥕</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🍌</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🫙</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🍞</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🧊</div>
+                    <div className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center text-lg shadow-sm">🍎</div>
+                  </div>
+                </div>
+                {/* Handle */}
+                <div className="absolute right-3 top-[42%] w-1.5 h-10 bg-slate-300 rounded-full" />
+              </div>
+
+              {/* Pop-out floating badges */}
+              <div className="absolute -top-4 -right-4 md:-right-20 bg-white rounded-2xl shadow-xl px-4 py-3 border border-slate-200 z-10 animate-bounce" style={{ animationDuration: '3s' }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <Bell className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Scadenze</p>
+                    <p className="text-sm font-bold text-amber-600">3 prodotti</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute -bottom-4 -left-4 md:-left-24 bg-white rounded-2xl shadow-xl px-4 py-3 border border-emerald-200 z-10 animate-bounce" style={{ animationDuration: '3.5s', animationDelay: '0.5s' }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <Leaf className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Zero spreco</p>
+                    <p className="text-sm font-bold text-emerald-600">94% efficienza</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute top-1/3 -right-4 md:-right-28 bg-olive-600 text-white rounded-2xl shadow-xl px-4 py-3 z-10 animate-bounce" style={{ animationDuration: '4s', animationDelay: '1s' }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <TrendingDown className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-olive-200">Risparmiato</p>
+                    <p className="text-sm font-bold">€142/mese</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute bottom-1/4 -left-4 md:-left-20 bg-white rounded-2xl shadow-xl px-4 py-3 border border-sky-200 z-10 animate-bounce" style={{ animationDuration: '3.2s', animationDelay: '1.5s' }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
+                    <MessageCircle className="w-4 h-4 text-sky-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">WhatsApp</p>
+                    <p className="text-sm font-bold text-sky-600">Connesso</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="mt-4 text-xs text-slate-400">Gratis per sempre. Nessuna carta richiesta.</p>
         </div>
 
-        {/* Hero: WA mockup + Fridge illustration side by side */}
-        <div className="mt-16 grid md:grid-cols-2 gap-8 items-center max-w-4xl mx-auto">
-          {/* WhatsApp mockup */}
+        {/* WhatsApp mockup below hero */}
+        <div className="mt-16 max-w-sm mx-auto">
+          <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Come funziona su WhatsApp</p>
           <div className="bg-[#ECE5DD] rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
             <div className="bg-[#075E54] px-4 py-3 flex items-center gap-3">
               <div className="w-8 h-8 bg-olive-400 rounded-full flex items-center justify-center">
@@ -98,9 +185,7 @@ export default function LandingPage() {
               </div>
               <div className="flex justify-start">
                 <div className="bg-white rounded-xl rounded-tl-sm px-3 py-2 max-w-[85%] shadow-sm">
-                  <p className="text-sm text-slate-800">
-                    🍽️ Ecco 3 idee dal tuo frigo:
-                  </p>
+                  <p className="text-sm text-slate-800">🍽️ Ecco 3 idee dal tuo frigo:</p>
                   <p className="text-sm text-slate-800 mt-1">
                     1️⃣ <strong>Pasta al pesto</strong> — 15 min<br />
                     2️⃣ <strong>Frittata di verdure</strong> — 10 min<br />
@@ -124,49 +209,6 @@ export default function LandingPage() {
                   </p>
                   <p className="text-[10px] text-slate-500 text-right mt-1">13:43</p>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Fridge illustration */}
-          <div className="hidden md:flex flex-col items-center gap-4">
-            <div className="relative">
-              {/* Stylized fridge */}
-              <div className="w-48 h-72 bg-gradient-to-b from-slate-100 to-slate-200 rounded-2xl border-2 border-slate-300 shadow-lg relative overflow-hidden">
-                {/* Fridge top */}
-                <div className="h-[35%] border-b-2 border-slate-300 p-3 flex flex-wrap gap-1.5 content-start">
-                  <div className="w-8 h-8 bg-yellow-200 rounded-lg" title="Formaggio" />
-                  <div className="w-8 h-8 bg-white rounded-lg border border-slate-200" title="Latte" />
-                  <div className="w-8 h-8 bg-red-200 rounded-lg" title="Pomodori" />
-                  <div className="w-6 h-6 bg-amber-100 rounded-full" title="Uova" />
-                  <div className="w-6 h-6 bg-amber-100 rounded-full" />
-                </div>
-                {/* Fridge bottom */}
-                <div className="p-3 flex flex-wrap gap-1.5 content-start">
-                  <div className="w-10 h-6 bg-green-200 rounded-lg" title="Zucchine" />
-                  <div className="w-10 h-6 bg-orange-200 rounded-lg" title="Carote" />
-                  <div className="w-8 h-8 bg-pink-100 rounded-lg" title="Prosciutto" />
-                  <div className="w-12 h-5 bg-amber-300 rounded-lg" title="Pasta" />
-                  <div className="w-8 h-8 bg-emerald-200 rounded-lg" title="Insalata" />
-                  <div className="w-10 h-6 bg-sky-100 rounded-lg" title="Yogurt" />
-                  <div className="w-8 h-5 bg-red-100 rounded-lg" title="Mozzarella" />
-                </div>
-                {/* Handle */}
-                <div className="absolute right-2 top-[38%] w-1.5 h-8 bg-slate-400 rounded-full" />
-              </div>
-
-              {/* Floating badges around fridge */}
-              <div className="absolute -top-3 -right-16 bg-white rounded-xl shadow-lg px-3 py-2 border border-slate-200">
-                <p className="text-[10px] text-slate-400 font-bold">SCADENZE</p>
-                <p className="text-sm font-bold text-amber-600">3 prodotti</p>
-              </div>
-              <div className="absolute -bottom-3 -left-20 bg-white rounded-xl shadow-lg px-3 py-2 border border-slate-200">
-                <p className="text-[10px] text-slate-400 font-bold">ZERO SPRECO</p>
-                <p className="text-sm font-bold text-emerald-600">94%</p>
-              </div>
-              <div className="absolute top-1/2 -right-20 bg-olive-600 text-white rounded-xl shadow-lg px-3 py-2">
-                <p className="text-[10px] font-bold">RISPARMIATO</p>
-                <p className="text-sm font-bold">€142/mese</p>
               </div>
             </div>
           </div>
