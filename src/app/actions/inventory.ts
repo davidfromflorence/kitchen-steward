@@ -149,6 +149,23 @@ export async function useItem(formData: FormData) {
   return { success: true }
 }
 
+export async function updateExpiry(id: string, expiryDate: string) {
+  const { supabase } = await getAuthAndHousehold()
+
+  const { error } = await supabase
+    .from('inventory_items')
+    .update({ expiry_date: expiryDate })
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error updating expiry:', error)
+    return { error: error.message }
+  }
+
+  revalidateAll()
+  return { success: true }
+}
+
 export async function moveItem(id: string, targetZone: string) {
   const { supabase } = await getAuthAndHousehold()
 

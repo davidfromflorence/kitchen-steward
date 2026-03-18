@@ -272,6 +272,9 @@ REGOLE PER USE_ITEMS:
 - Se un prodotto non è nel frigo, ignoralo (non sottrarlo)
 - Conferma cosa hai sottratto nel messaggio visibile
 
+Se l'utente vuole CAMBIARE LA SCADENZA di un prodotto (es: "il latte scade il 25 marzo", "la pasta sfoglia scade tra 5 giorni", "aggiorna scadenza mozzarella al 20/03"):
+<<<UPDATE_EXPIRY>>>[{"name":"nome prodotto nel frigo","new_date":"YYYY-MM-DD"}]<<<END>>>
+
 Se genera spesa:
 <<<SAVE_SHOPPING>>>[{"name":"...","category":"General"}]<<<END>>>
 
@@ -374,6 +377,28 @@ Messaggio utente: ${message}`
       console.error('USE_ITEMS error:', e)
     }
     reply = reply.replace(/<<<USE_ITEMS>>>[\s\S]*?<<<END>>>/g, '').trim()
+  }
+
+  // Process UPDATE_EXPIRY
+  const expiryMatch = reply.match(/<<<UPDATE_EXPIRY>>>([\s\S]*?)<<<END>>>/)
+  if (expiryMatch) {
+    try {
+      const parsed: Array<{ name: string; new_date: string }> = JSON.parse(expiryMatch[1])
+      for (const item of parsed) {
+        const { data: matches } = await supabase
+          .from('inventory_items')
+          .select('id')
+          .eq('household_id', householdId)
+          .ilike('name', `%${item.name}%`)
+          .limit(1)
+        if (matches && matches.length > 0) {
+          await supabase.from('inventory_items').update({ expiry_date: item.new_date }).eq('id', matches[0].id)
+        }
+      }
+    } catch (e) {
+      console.error('UPDATE_EXPIRY error:', e)
+    }
+    reply = reply.replace(/<<<UPDATE_EXPIRY>>>[\s\S]*?<<<END>>>/g, '').trim()
   }
 
   return reply.replace(/\n{3,}/g, '\n\n')

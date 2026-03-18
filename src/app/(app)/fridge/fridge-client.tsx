@@ -19,8 +19,9 @@ import {
   X,
   Repeat,
   Pause,
+  CalendarDays,
 } from 'lucide-react'
-import { deleteItem, useItem, moveItem, logMeal } from '@/app/actions/inventory'
+import { deleteItem, useItem, moveItem, logMeal, updateExpiry } from '@/app/actions/inventory'
 import { createHabitFromDescription, saveHabit, getHabits, deleteHabit } from '@/app/actions/habits'
 import type { HabitItem, Habit } from '@/app/actions/habits'
 import AddItemModal from './add-item-modal'
@@ -147,6 +148,9 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   const [habitDraft, setHabitDraft] = useState<{ description: string; items: HabitItem[]; frequency: string; times: number } | null>(null)
   const [habitList, setHabitList] = useState<Habit[]>([])
   const [habitError, setHabitError] = useState<string | null>(null)
+  // Expiry edit
+  const [editingExpiryId, setEditingExpiryId] = useState<string | null>(null)
+  const [editingExpiryDate, setEditingExpiryDate] = useState('')
 
   useEffect(() => {
     if (searchParams.get('add') === 'true') setShowAddModal(true)
@@ -178,6 +182,16 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
       setMealResult({ error: 'Errore. Riprova.', used: [] })
     } finally {
       setMealLoading(false)
+    }
+  }
+
+  async function handleUpdateExpiry(id: string, date: string) {
+    setPendingId(id)
+    try {
+      await updateExpiry(id, date)
+    } finally {
+      setPendingId(null)
+      setEditingExpiryId(null)
     }
   }
 
@@ -401,11 +415,39 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
                     <div className="p-3">
                       <h3 className="font-bold text-slate-800 text-sm truncate">{item.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">{item.quantity} {item.unit}</p>
-                      {badge && (
-                        <span className={`inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.className}`}>
+                      {badge && editingExpiryId === item.id ? (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <input
+                            type="date"
+                            value={editingExpiryDate}
+                            onChange={(e) => setEditingExpiryDate(e.target.value)}
+                            className="text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-olive-500"
+                          />
+                          <button
+                            onClick={() => handleUpdateExpiry(item.id, editingExpiryDate)}
+                            className="text-olive-600 hover:bg-olive-50 p-1 rounded"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setEditingExpiryId(null)}
+                            className="text-slate-400 hover:bg-slate-50 p-1 rounded"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : badge ? (
+                        <button
+                          onClick={() => {
+                            setEditingExpiryId(item.id)
+                            setEditingExpiryDate(item.expiry_date?.split('T')[0] || '')
+                          }}
+                          className={`inline-flex items-center gap-1 mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.className} hover:opacity-80 transition-opacity`}
+                        >
                           {badge.label}
-                        </span>
-                      )}
+                          <CalendarDays className="w-2.5 h-2.5" />
+                        </button>
+                      ) : null}
                       {/* Always-visible action buttons */}
                       <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100">
                         <form action={(fd) => handleAction(fd, useItem)} className="flex-1">
@@ -504,11 +546,14 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
                                 <p className="text-[11px] text-slate-400">{item.quantity} {item.unit}</p>
                               </div>
                               {days !== null && days <= 3 && (
-                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
-                                  days <= 0 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
-                                }`}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingExpiryId(item.id); setEditingExpiryDate(item.expiry_date?.split('T')[0] || '') }}
+                                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 hover:opacity-80 ${
+                                    days <= 0 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                                  }`}
+                                >
                                   {days <= 0 ? '!' : `${days}g`}
-                                </span>
+                                </button>
                               )}
                               <div className="flex gap-1 shrink-0">
                                 <form action={(fd) => handleAction(fd, useItem)} onClick={(e) => e.stopPropagation()}>
@@ -836,6 +881,39 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
           </div>
         </div>
       )}
+
+      {/* Expiry edit modal (for kitchen view taps) */}
+      {editingExpiryId && viewMode === 'kitchen' && (() => {
+        const item = items.find(i => i.id === editingExpiryId)
+        if (!item) return null
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setEditingExpiryId(null)}>
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs p-5 pb-8 sm:pb-5" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-bold text-slate-900 mb-1">{item.name}</h3>
+              <p className="text-xs text-slate-500 mb-4">Modifica data di scadenza</p>
+              <input
+                type="date"
+                value={editingExpiryDate}
+                onChange={(e) => setEditingExpiryDate(e.target.value)}
+                className="w-full rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-olive-500 mb-3"
+              />
+              <button
+                onClick={() => handleUpdateExpiry(item.id, editingExpiryDate)}
+                disabled={!editingExpiryDate}
+                className="w-full bg-olive-600 hover:bg-olive-700 text-white rounded-xl py-3 font-semibold transition-all active:scale-95 disabled:opacity-50"
+              >
+                Salva
+              </button>
+              <button
+                onClick={() => setEditingExpiryId(null)}
+                className="w-full mt-2 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
