@@ -75,9 +75,19 @@ export default function ShoppingClient({
   const [showAddForm, setShowAddForm] = useState(false)
   const [addName, setAddName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [optimisticChecked, setOptimisticChecked] = useState<Set<string>>(new Set())
+  const [optimisticUnchecked, setOptimisticUnchecked] = useState<Set<string>>(new Set())
 
-  const unchecked = listItems.filter(i => !i.checked)
-  const checked = listItems.filter(i => i.checked)
+  const unchecked = listItems.filter(i => {
+    if (optimisticChecked.has(i.id)) return false
+    if (optimisticUnchecked.has(i.id)) return true
+    return !i.checked
+  })
+  const checked = listItems.filter(i => {
+    if (optimisticChecked.has(i.id)) return true
+    if (optimisticUnchecked.has(i.id)) return false
+    return i.checked
+  })
 
   async function handleGenerate() {
     setLoading(true)
@@ -149,11 +159,23 @@ export default function ShoppingClient({
   }
 
   async function handleToggle(id: string, isChecked: boolean) {
-    setPendingId(id)
+    // Optimistic: instantly move to other list
+    if (isChecked) {
+      setOptimisticUnchecked(prev => new Set(prev).add(id))
+      setOptimisticChecked(prev => { const n = new Set(prev); n.delete(id); return n })
+    } else {
+      setOptimisticChecked(prev => new Set(prev).add(id))
+      setOptimisticUnchecked(prev => { const n = new Set(prev); n.delete(id); return n })
+    }
+
     const fd = new FormData()
     fd.set('id', id)
     fd.set('checked', String(isChecked))
-    try { await toggleShoppingItem(fd) } finally { setPendingId(null) }
+    await toggleShoppingItem(fd)
+
+    // Clear optimistic state after server confirms
+    setOptimisticChecked(prev => { const n = new Set(prev); n.delete(id); return n })
+    setOptimisticUnchecked(prev => { const n = new Set(prev); n.delete(id); return n })
   }
 
   async function handleDelete(id: string) {
