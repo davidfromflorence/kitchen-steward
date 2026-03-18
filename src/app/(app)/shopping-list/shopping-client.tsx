@@ -51,7 +51,9 @@ interface GeneratedList {
   savings_tip: string
 }
 
-const BUDGET_OPTIONS = [30, 50, 80, 120]
+const BUDGET_MIN = 15
+const BUDGET_MAX = 200
+const BUDGET_STEP = 5
 const DAYS_OPTIONS = [3, 5, 7]
 const PEOPLE_OPTIONS = [1, 2, 3, 4, 5, 6]
 
@@ -214,21 +216,26 @@ export default function ShoppingClient({
           Analizza il frigo e suggerisce cosa comprare per {days} giorni, nel tuo budget.
         </p>
 
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="space-y-4 mb-4">
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Budget</label>
-            <div className="flex flex-wrap gap-1">
-              {BUDGET_OPTIONS.map(b => (
-                <button
-                  key={b}
-                  onClick={() => setBudget(b)}
-                  className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${budget === b ? 'bg-olive-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
-                >
-                  €{b}
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Budget</label>
+              <span className="text-sm font-bold text-olive-600">€{budget}</span>
+            </div>
+            <input
+              type="range"
+              min={BUDGET_MIN}
+              max={BUDGET_MAX}
+              step={BUDGET_STEP}
+              value={budget}
+              onChange={(e) => setBudget(Number(e.target.value))}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-olive-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-olive-600 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white"
+            />
+            <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+              <span>€{BUDGET_MIN}</span><span>€{Math.round((BUDGET_MIN + BUDGET_MAX) / 2)}</span><span>€{BUDGET_MAX}</span>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Giorni</label>
             <div className="flex gap-1">
@@ -256,6 +263,7 @@ export default function ShoppingClient({
                 </button>
               ))}
             </div>
+          </div>
           </div>
         </div>
 
