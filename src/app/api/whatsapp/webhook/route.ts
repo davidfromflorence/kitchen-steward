@@ -52,6 +52,63 @@ async function sendWhatsApp(phoneNumber: string, message: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Conversation memory (in-memory, per-phone, last 5 messages)
+// ---------------------------------------------------------------------------
+
+interface ConversationEntry {
+  role: 'user' | 'assistant'
+  content: string
+  ts: number
+}
+
+const conversations = new Map<string, ConversationEntry[]>()
+const MEMORY_TTL = 15 * 60 * 1000 // 15 minutes
+const MAX_HISTORY = 6 // 3 exchanges
+
+function getHistory(phone: string): ConversationEntry[] {
+  const history = conversations.get(phone) || []
+  const cutoff = Date.now() - MEMORY_TTL
+  return history.filter((e) => e.ts > cutoff)
+}
+
+function addToHistory(phone: string, role: 'user' | 'assistant', content: string) {
+  const history = getHistory(phone)
+  history.push({ role, content, ts: Date.now() })
+  // Keep only last MAX_HISTORY entries
+  if (history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY)
+  conversations.set(phone, history)
+}
+
+// Cleanup old conversations periodically
+setInterval(() => {
+  const cutoff = Date.now() - MEMORY_TTL
+  for (const [key, entries] of conversations) {
+    if (entries.every((e) => e.ts < cutoff)) conversations.delete(key)
+  }
+}, 5 * 60 * 1000)
+
+// ---------------------------------------------------------------------------
+// Time context
+// ---------------------------------------------------------------------------
+
+function getMealContext(): string {
+  const hour = new Date().getHours()
+  if (hour >= 6 && hour < 10) return 'colazione'
+  if (hour >= 10 && hour < 14) return 'pranzo'
+  if (hour >= 14 && hour < 17) return 'merenda'
+  if (hour >= 17 && hour < 22) return 'cena'
+  return 'spuntino notturno'
+}
+
+function getItalianDate(): string {
+  return new Date().toLocaleDateString('it-IT', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Fast intent detection (no AI, <1ms)
 // ---------------------------------------------------------------------------
 
@@ -73,10 +130,8 @@ function detectFastIntent(msg: string): FastIntent {
     return { type: 'greeting' }
   }
 
-  // Numbered quick replies
-  if (l === '1') return { type: 'show_fridge' }
-  if (l === '2') return { type: 'ai_needed' } // recipe — needs AI
-  if (l === '3') return { type: 'ai_needed' } // shopping/plan — needs AI
+  // Numbered quick replies — these are contextual, let AI handle with history
+  if (/^[1-3]$/.test(l)) return { type: 'ai_needed' }
 
   // Exact commands
   if (['lista', 'frigo', 'fridge'].includes(l)) return { type: 'show_fridge' }
@@ -122,12 +177,21 @@ async function handleGreeting(supabase: any, householdId: string, userId: string
     return d >= 0 && d <= 3
   }).length
 
+  const meal = getMealContext()
+  const greeting = meal === 'colazione' ? 'Buongiorno' : meal === 'cena' ? 'Buonasera' : 'Ciao'
+
   let status = total === 0
-    ? '📦 Il frigo è vuoto — aggiungimi cosa hai comprato!'
+    ? '📦 Il frigo è vuoto — dimmi cosa hai comprato!'
     : `🧊 Hai *${total} prodotti* nel frigo`
   if (expiring > 0) status += ` — ⚠️ *${expiring}* in scadenza!`
 
-  return `👋 Ciao *${name}*!\n\n${status}${MENU_DEFAULT}`
+  const tip = expiring > 0
+    ? `\n\n💡 Vuoi una ricetta per usare i prodotti in scadenza?`
+    : meal === 'pranzo' || meal === 'cena'
+      ? `\n\n💡 È ora di ${meal} — vuoi un suggerimento?`
+      : ''
+
+  return `${greeting} *${name}*! 👋\n\n${status}${tip}${MENU_DEFAULT}`
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,7 +226,7 @@ async function handleExpiring(supabase: any, householdId: string): Promise<strin
     return `${emoji} ${i.quantity} ${i.unit} ${i.name} — ${label}`
   })
 
-  return `⏰ *Prodotti in scadenza*\n\n${lines.join('\n')}\n\n⬇️ *Scegli:*\n1️⃣ Ricetta con questi\n2️⃣ Mostra il frigo\n3️⃣ Genera la lista spesa`
+  return `⏰ *Prodotti in scadenza*\n\n${lines.join('\n')}\n\n💡 _Vuoi una ricetta per usarli?_\n\n⬇️ *Scegli:*\n1️⃣ Ricetta con questi\n2️⃣ Mostra il frigo\n3️⃣ Genera la lista spesa`
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -218,7 +282,7 @@ async function handleDelete(supabase: any, householdId: string, itemName: string
 
 const HELP_TEXT = `🍳 *Kitchen Steward*
 
-Parla con me in modo naturale!
+Parlami come parleresti a un amico!
 
 🧊 *Frigo* — "Cosa c'è nel frigo?"
 ⏰ *Scadenze* — "Cosa scade?"
@@ -226,64 +290,95 @@ Parla con me in modo naturale!
 🛒 *Spesa* — "Genera la lista della spesa"
 📋 *Pianifica* — "Pianifica i pasti della settimana"
 🗑️ *Rimuovi* — "Ho finito il latte"
-💡 *Curiosità* — "Dimmi una curiosità"
 ➕ *Aggiungi* — "Ho comprato pollo, uova e latte"
+🍝 *Ho mangiato* — "Ho mangiato pasta al pesto"
+📅 *Scadenza* — "Il latte scade venerdì"
 
-📋 La spesa è formattata per Google Keep / Apple Notes!` + MENU_DEFAULT
+💡 Ricordo la conversazione — puoi dire "la 2" dopo che ti propongo delle ricette!` + MENU_DEFAULT
 
 // ---------------------------------------------------------------------------
-// AI handler (Gemini, for complex requests only)
+// AI handler (Gemini, with conversation history)
 // ---------------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handleWithAI(supabase: any, householdId: string, userId: string, message: string): Promise<string> {
-  // Lightweight context — only what AI needs
-  const [profileRes, inventoryRes] = await Promise.all([
+async function handleWithAI(supabase: any, householdId: string, userId: string, message: string, phone: string): Promise<string> {
+  const [profileRes, inventoryRes, shoppingRes] = await Promise.all([
     supabase.from('users').select('full_name').eq('id', userId).single(),
     supabase.from('inventory_items').select('name, quantity, unit, category, expiry_date').eq('household_id', householdId).order('expiry_date', { ascending: true, nullsFirst: false }),
+    supabase.from('shopping_list_items').select('name').eq('household_id', householdId).eq('checked', false).limit(20),
   ])
 
   const items = inventoryRes.data || []
   const userName = profileRes.data?.full_name?.split(' ')[0] || 'amico'
+  const shoppingItems = (shoppingRes.data || []).map((i: { name: string }) => i.name)
   const now = Date.now()
+  const meal = getMealContext()
+  const today = getItalianDate()
 
-  const fridgeLines = items.map((i: { name: string; quantity: number; unit: string; expiry_date: string | null }) => {
-    const exp = i.expiry_date ? ` [${Math.ceil((new Date(i.expiry_date).getTime() - now) / 86_400_000)}g]` : ''
-    return `${i.quantity}${i.unit} ${i.name}${exp}`
-  }).join(', ')
+  // Build fridge context with days-to-expiry
+  const fridgeLines = items.map((i: { name: string; quantity: number; unit: string; expiry_date: string | null; category: string }) => {
+    const days = i.expiry_date ? Math.ceil((new Date(i.expiry_date).getTime() - now) / 86_400_000) : null
+    const exp = days !== null ? (days <= 0 ? ' ⚠️SCADUTO' : days <= 2 ? ` ⚠️${days}g` : ` [${days}g]`) : ''
+    return `- ${i.quantity}${i.unit} ${i.name} (${i.category})${exp}`
+  }).join('\n')
 
-  const prompt = `Sei Kitchen Steward, assistente cucina italiano su WhatsApp. Utente: ${userName}. Frigo: ${fridgeLines || 'vuoto'}.
+  // Build conversation history for context
+  const history = getHistory(phone)
+  const historyText = history.length > 0
+    ? '\n\nCONVERSAZIONE RECENTE:\n' + history.map((e) =>
+        `${e.role === 'user' ? 'UTENTE' : 'TU'}: ${e.content.substring(0, 200)}`
+      ).join('\n')
+    : ''
 
-Regole: italiano, conciso, emoji, formattazione WhatsApp (*grassetto*).
-Per liste spesa usa ☐ per ogni riga (copiabili su Google Keep).
-Per RICETTE: proponi SEMPRE 3 opzioni brevi (nome + tempo + 1 riga descrizione), numerate 1️⃣ 2️⃣ 3️⃣. L'utente sceglie il numero e tu rispondi con la ricetta completa (ingredienti, passi max 5, tip anti-spreco). Se l'utente dice un numero dopo una proposta di ricette, mostra quella ricetta completa.
-Per meal plan: Lun-Dom con pranzo e cena.
+  const prompt = `Sei Kitchen Steward, un assistente cucina amichevole e intelligente su WhatsApp.
+
+CONTESTO:
+- Utente: ${userName}
+- Data: ${today}
+- Momento della giornata: ${meal}
+- Lista spesa attuale: ${shoppingItems.length > 0 ? shoppingItems.join(', ') : 'vuota'}
+${historyText}
+
+FRIGO (${items.length} prodotti):
+${fridgeLines || '(vuoto)'}
+
+PERSONALITÀ:
+- Parli italiano, sei conciso e amichevole
+- Usi emoji con moderazione (non ogni riga)
+- Formattazione WhatsApp: *grassetto*, _corsivo_
+- Sei proattivo: se vedi prodotti in scadenza, suggerisci come usarli
+- Conosci la cucina italiana e le porzioni tipiche
+- Se è ora di ${meal}, adatti i suggerimenti al momento
+
+RISPOSTE AI NUMERI:
+Se l'utente scrive "1", "2", "3" o "la 1", "la 2", "la seconda", guarda la conversazione recente e rispondi alla scelta corrispondente. Se avevi proposto 3 ricette, dai la ricetta completa di quella scelta.
 
 AZIONI DATABASE:
 
-Se l'utente AGGIUNGE prodotti (ha comprato, aggiungi...):
+Se l'utente AGGIUNGE prodotti (ha comprato, aggiungi, ho preso...):
 <<<ADD_ITEMS>>>[{"name":"...","qty":N,"unit":"pz|kg|g|litri|ml","category":"Protein|Vegetable|Fruit|Dairy|Carbohydrate|Condiment|General"}]<<<END>>>
 
-Se l'utente ha MANGIATO/CUCINATO/USATO qualcosa (ho mangiato, ho cucinato, abbiamo fatto...), DEVI sottrarre gli ingredienti dal frigo. Stima le quantità tipiche di una porzione italiana. Usa questo blocco:
-<<<USE_ITEMS>>>[{"name":"nome prodotto nel frigo","qty_subtract":N,"unit":"stessa unit del frigo"}]<<<END>>>
+Se l'utente ha MANGIATO/CUCINATO/USATO qualcosa:
+<<<USE_ITEMS>>>[{"name":"nome ESATTO dal frigo","qty_subtract":N,"unit":"stessa unit del frigo"}]<<<END>>>
+IMPORTANTE: il "name" deve corrispondere ESATTAMENTE a un prodotto nel frigo. Porzioni italiane: pasta ~80g, riso ~80g, pesto ~30g, pollo ~150g, uova 2pz, mozzarella 125g, verdure ~150g.
 
-REGOLE PER USE_ITEMS:
-- Il "name" DEVE corrispondere a un prodotto nel frigo (usa nomi simili a quelli elencati sopra)
-- Stima quantità realistiche per porzione: pasta ~100g, pesto ~30g, pollo ~150g, uova 2pz, latte ~200ml, etc.
-- Se un prodotto non è nel frigo, ignoralo (non sottrarlo)
-- Conferma cosa hai sottratto nel messaggio visibile
+Se CAMBIA SCADENZA:
+<<<UPDATE_EXPIRY>>>[{"name":"nome ESATTO dal frigo","new_date":"YYYY-MM-DD"}]<<<END>>>
 
-Se l'utente vuole CAMBIARE LA SCADENZA di un prodotto (es: "il latte scade il 25 marzo", "la pasta sfoglia scade tra 5 giorni", "aggiorna scadenza mozzarella al 20/03"):
-<<<UPDATE_EXPIRY>>>[{"name":"nome prodotto nel frigo","new_date":"YYYY-MM-DD"}]<<<END>>>
-
-Se genera spesa:
+Se GENERA SPESA:
 <<<SAVE_SHOPPING>>>[{"name":"...","category":"General"}]<<<END>>>
 
-SEMPRE termina con:
+RICETTE:
+- Proponi SEMPRE 3 opzioni: nome + tempo + 1 riga
+- Numerate 1️⃣ 2️⃣ 3️⃣
+- Prioritizza ingredienti in scadenza
+- Quando l'utente sceglie, dai: ingredienti dal frigo, passi (max 5), tip anti-spreco
+
+TERMINA SEMPRE con opzioni contestuali:
 ⬇️ *Scegli:*
-1️⃣ [opzione]
-2️⃣ [opzione]
-3️⃣ [opzione]
+1️⃣ [opzione rilevante]
+2️⃣ [opzione rilevante]
+3️⃣ [opzione rilevante]
 
 Messaggio utente: ${message}`
 
@@ -316,7 +411,6 @@ Messaggio utente: ${message}`
         })
         await supabase.from('inventory_items').insert(rows)
 
-        // Notify family
         const itemNames = parsed.map((i: { name: string }) => i.name).join(', ')
         notifyFamily(supabase, householdId, userId, `🛒 ${userName} ha aggiunto: ${itemNames}`)
       }
@@ -346,30 +440,39 @@ Messaggio utente: ${message}`
     reply = reply.replace(/<<<SAVE_SHOPPING>>>[\s\S]*?<<<END>>>/g, '').trim()
   }
 
-  // Process USE_ITEMS (subtract from inventory)
+  // Process USE_ITEMS
   const useMatch = reply.match(/<<<USE_ITEMS>>>([\s\S]*?)<<<END>>>/)
   if (useMatch) {
     try {
       const parsed: Array<{ name: string; qty_subtract: number; unit: string }> = JSON.parse(useMatch[1])
       for (const used of parsed) {
-        // Find matching item in inventory (fuzzy match)
-        const { data: matches } = await supabase
+        // Exact match first, then fuzzy
+        let { data: matches } = await supabase
           .from('inventory_items')
           .select('id, name, quantity, unit')
           .eq('household_id', householdId)
-          .ilike('name', `%${used.name}%`)
-          .order('expiry_date', { ascending: true }) // use oldest first
+          .ilike('name', used.name)
+          .order('expiry_date', { ascending: true })
           .limit(1)
+
+        if (!matches || matches.length === 0) {
+          // Fuzzy fallback
+          const result = await supabase
+            .from('inventory_items')
+            .select('id, name, quantity, unit')
+            .eq('household_id', householdId)
+            .ilike('name', `%${used.name}%`)
+            .order('expiry_date', { ascending: true })
+            .limit(1)
+          matches = result.data
+        }
 
         if (matches && matches.length > 0) {
           const item = matches[0]
           const newQty = item.quantity - used.qty_subtract
-
           if (newQty <= 0) {
-            // Remove item entirely
             await supabase.from('inventory_items').delete().eq('id', item.id)
           } else {
-            // Subtract quantity
             await supabase.from('inventory_items').update({ quantity: newQty }).eq('id', item.id)
           }
         }
@@ -407,7 +510,6 @@ Messaggio utente: ${message}`
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function notifyFamily(supabase: any, householdId: string, excludeUserId: string, message: string) {
-  // Fire and forget
   supabase
     .from('users')
     .select('whatsapp_number')
@@ -458,7 +560,7 @@ export async function POST(request: Request) {
       return twiml('Completa la configurazione su Kitchen Steward prima di usare la chat.')
     }
 
-    // Media — instant response (free plan can't process in time)
+    // Media — instant response
     if (numMedia > 0) {
       const mediaType = (formData.get('MediaContentType0') as string) || ''
       if (mediaType.startsWith('audio/')) {
@@ -471,26 +573,43 @@ export async function POST(request: Request) {
 
     if (!body) return twiml('Scrivimi qualcosa!' + MENU_DEFAULT)
 
+    // Save user message to history
+    addToHistory(phoneNumber, 'user', body)
+
     // Fast path — no Gemini needed (~1-2s)
     const intent = detectFastIntent(body)
+    let reply: string
 
     switch (intent.type) {
       case 'greeting':
-        return twiml(await handleGreeting(supabase, user.household_id, user.id))
+        reply = await handleGreeting(supabase, user.household_id, user.id)
+        break
       case 'show_fridge':
-        return twiml(await handleShowFridge(supabase, user.household_id))
+        reply = await handleShowFridge(supabase, user.household_id)
+        break
       case 'show_expiring':
-        return twiml(await handleExpiring(supabase, user.household_id))
+        reply = await handleExpiring(supabase, user.household_id)
+        break
       case 'show_shopping':
-        return twiml(await handleShowShopping(supabase, user.household_id))
+        reply = await handleShowShopping(supabase, user.household_id)
+        break
       case 'delete':
-        return twiml(await handleDelete(supabase, user.household_id, intent.item))
+        reply = await handleDelete(supabase, user.household_id, intent.item)
+        break
       case 'help':
-        return twiml(HELP_TEXT)
+        reply = HELP_TEXT
+        break
       case 'ai_needed':
-        // Slow path — Gemini (~5-8s)
-        return twiml(await handleWithAI(supabase, user.household_id, user.id, body))
+        reply = await handleWithAI(supabase, user.household_id, user.id, body, phoneNumber)
+        break
+      default:
+        reply = 'Non ho capito. Scrivi "aiuto" per le istruzioni.'
     }
+
+    // Save bot reply to history
+    addToHistory(phoneNumber, 'assistant', reply)
+
+    return twiml(reply)
   } catch (error) {
     console.error('WhatsApp webhook error:', error)
     return twiml('Si è verificato un errore. Riprova tra qualche istante.')
