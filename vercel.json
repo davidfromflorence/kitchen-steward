@@ -11,6 +11,9 @@
     },
     "src/app/api/cron/process-habits/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/meal-checkin/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -25,6 +28,14 @@
     {
       "path": "/api/cron/weekly-summary",
       "schedule": "0 9 * * 0"
+    },
+    {
+      "path": "/api/cron/meal-checkin?meal=lunch",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/meal-checkin?meal=dinner",
+      "schedule": "0 20 * * *"
     }
   ]
 }

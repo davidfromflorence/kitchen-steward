@@ -119,6 +119,7 @@ type FastIntent =
   | { type: 'show_shopping' }
   | { type: 'help' }
   | { type: 'delete'; item: string }
+  | { type: 'ate_out' }
   | { type: 'media_unsupported'; kind: string }
   | { type: 'ai_needed' }
 
@@ -138,6 +139,14 @@ function detectFastIntent(msg: string): FastIntent {
   if (['scadenze', 'scade', 'expiring'].includes(l)) return { type: 'show_expiring' }
   if (['spesa', 'shopping', 'lista spesa'].includes(l)) return { type: 'show_shopping' }
   if (['aiuto', 'help', '?'].includes(l)) return { type: 'help' }
+
+  // Ate out — no subtraction needed
+  if (/mangiato?\s+fuori|ho\s+(pranzato|cenato)\s+fuori|sono\s+(andat[oa]|uscit[oa]).*mangiare|ristorante|pizzeria|mangiato?\s+(al|in)\s+/i.test(l)) {
+    return { type: 'ate_out' }
+  }
+  if (['fuori', 'mangiato fuori', 'ho mangiato fuori', 'pranzato fuori', 'cenato fuori'].includes(l)) {
+    return { type: 'ate_out' }
+  }
 
   // Keyword patterns (no AI needed)
   if (/cosa (c'è|c'e|abbiamo|hai|c è).*frig/i.test(l)) return { type: 'show_fridge' }
@@ -292,8 +301,10 @@ Parlami come parleresti a un amico!
 🗑️ *Rimuovi* — "Ho finito il latte"
 ➕ *Aggiungi* — "Ho comprato pollo, uova e latte"
 🍝 *Ho mangiato* — "Ho mangiato pasta al pesto"
+🍕 *Fuori* — "Ho mangiato fuori" (non tolgo nulla)
 📅 *Scadenza* — "Il latte scade venerdì"
 
+💡 Ti chiederò dopo pranzo e cena cosa hai mangiato, così aggiorno il frigo!
 💡 Ricordo la conversazione — puoi dire "la 2" dopo che ti propongo delle ricette!` + MENU_DEFAULT
 
 // ---------------------------------------------------------------------------
@@ -358,9 +369,11 @@ AZIONI DATABASE:
 Se l'utente AGGIUNGE prodotti (ha comprato, aggiungi, ho preso...):
 <<<ADD_ITEMS>>>[{"name":"...","qty":N,"unit":"pz|kg|g|litri|ml","category":"Protein|Vegetable|Fruit|Dairy|Carbohydrate|Condiment|General"}]<<<END>>>
 
-Se l'utente ha MANGIATO/CUCINATO/USATO qualcosa:
+Se l'utente ha MANGIATO/CUCINATO/USATO qualcosa A CASA:
 <<<USE_ITEMS>>>[{"name":"nome ESATTO dal frigo","qty_subtract":N,"unit":"stessa unit del frigo"}]<<<END>>>
 IMPORTANTE: il "name" deve corrispondere ESATTAMENTE a un prodotto nel frigo. Porzioni italiane: pasta ~80g, riso ~80g, pesto ~30g, pollo ~150g, uova 2pz, mozzarella 125g, verdure ~150g.
+
+Se l'utente dice "ho mangiato fuori", "pranzato fuori", "ristorante", "pizzeria", etc.: NON usare USE_ITEMS, NON sottrarre nulla. Rispondi con un messaggio amichevole tipo "Ok, buon appetito!".
 
 Se CAMBIA SCADENZA:
 <<<UPDATE_EXPIRY>>>[{"name":"nome ESATTO dal frigo","new_date":"YYYY-MM-DD"}]<<<END>>>
@@ -596,6 +609,11 @@ export async function POST(request: Request) {
       case 'delete':
         reply = await handleDelete(supabase, user.household_id, intent.item)
         break
+      case 'ate_out': {
+        const name = (await supabase.from('users').select('full_name').eq('id', user.id).single()).data?.full_name?.split(' ')[0] || ''
+        reply = `🍕 Ok ${name}, mangiato fuori! Non tolgo nulla dal frigo.\n\nBuon appetito! 😊` + MENU_DEFAULT
+        break
+      }
       case 'help':
         reply = HELP_TEXT
         break
