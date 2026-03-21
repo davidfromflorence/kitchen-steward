@@ -23,11 +23,11 @@ interface SidebarProps {
 
 const mainNav = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Fridge', href: '/fridge', icon: Refrigerator },
-  { label: 'Shopping List', href: '/shopping-list', icon: ShoppingCart },
-  { label: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { label: 'Recipes', href: '/recipes', icon: ChefHat },
-  { label: 'Learn', href: '/learn', icon: BookOpen },
+  { label: 'Il mio frigo', href: '/fridge', icon: Refrigerator },
+  { label: 'Lista della spesa', href: '/shopping-list', icon: ShoppingCart },
+  { label: 'Ricette', href: '/recipes', icon: ChefHat },
+  { label: 'Impara', href: '/learn', icon: BookOpen },
+  { label: 'Statistiche', href: '/analytics', icon: BarChart3 },
 ]
 
 const bottomNav = [
@@ -54,33 +54,25 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
   return (
     <>
       {/* Mobile Top Bar */}
-      <div className="md:hidden fixed top-0 inset-x-0 z-30 flex items-center justify-between bg-white/90 backdrop-blur-sm border-b border-slate-200 px-4 py-3 safe-top">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-olive-600">
+      <div className="md:hidden fixed top-0 inset-x-0 z-30 flex items-center justify-between bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 py-2.5 safe-top">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-olive-600">
             <ChefHat className="h-4 w-4 text-white" />
           </div>
           <span className="text-sm font-bold text-slate-900">Kitchen Steward</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => setTheme(resolved === 'dark' ? 'light' : 'dark')}
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded-full bg-slate-100 transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
           >
-            <Sun className={`h-3.5 w-3.5 ${resolved === 'light' ? 'text-amber-500' : 'text-slate-400'}`} />
-            <div className={`relative w-7 h-4 rounded-full transition-colors ${resolved === 'dark' ? 'bg-olive-600' : 'bg-slate-300'}`}>
-              <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${resolved === 'dark' ? 'translate-x-3' : 'translate-x-0'}`} />
-            </div>
-            <Moon className={`h-3.5 w-3.5 ${resolved === 'dark' ? 'text-olive-400' : 'text-slate-400'}`} />
+            {resolved === 'dark' ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
           </button>
           <Link
             href="/settings"
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-              isActive(pathname, '/settings')
-                ? 'bg-olive-100 text-olive-700'
-                : 'bg-slate-100 text-slate-500 hover:text-slate-700'
-            }`}
+            className="w-8 h-8 rounded-full bg-olive-600 flex items-center justify-center text-white text-xs font-bold"
           >
-            <Settings className="h-5 w-5" />
+            {initials}
           </Link>
         </div>
       </div>
@@ -88,16 +80,11 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 z-30 w-64 flex-col bg-white border-r border-slate-200">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-olive-600">
+        <div className="flex items-center gap-3 px-6 py-5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-olive-600">
             <ChefHat className="h-5 w-5 text-white" />
           </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-900 leading-tight">Kitchen Steward</p>
-            <p className="text-[10px] font-semibold tracking-[0.15em] text-slate-400 uppercase">
-              Elite Management
-            </p>
-          </div>
+          <p className="text-sm font-bold text-slate-900">Kitchen Steward</p>
         </div>
 
         {/* Main Navigation */}
@@ -133,7 +120,7 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
             }`}
           >
             <Settings className="h-5 w-5 flex-shrink-0" />
-            Settings
+            Impostazioni
           </Link>
         </nav>
 
@@ -169,30 +156,27 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
 
         {/* User Profile */}
         <div className="border-t border-slate-200 px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-olive-600 text-white text-sm font-semibold">
+          <Link href="/settings" className="flex items-center gap-3 rounded-xl px-1 py-1 -mx-1 hover:bg-slate-50 transition-colors">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-olive-600 text-white text-sm font-semibold shrink-0">
               {initials}
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">{userName}</p>
-              <p className="text-xs text-slate-400 truncate">{userRole}</p>
-            </div>
-          </div>
+            <p className="text-sm font-medium text-slate-900 truncate">{userName}</p>
+          </Link>
         </div>
       </aside>
 
       {/* Mobile Bottom Nav Bar */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 flex items-center justify-around bg-white border-t border-slate-200 px-2 py-2 safe-bottom">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 flex items-center justify-around bg-white/95 backdrop-blur-sm border-t border-slate-200 px-1 py-1.5 safe-bottom">
         {bottomNav.map((item) => {
           const active = isActive(pathname, item.href)
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl text-[10px] font-semibold transition-colors ${
                 active
-                  ? 'text-olive-700'
-                  : 'text-slate-400 hover:text-slate-600'
+                  ? 'text-olive-700 bg-olive-50'
+                  : 'text-slate-400'
               }`}
             >
               <item.icon className={`h-5 w-5 ${active ? 'text-olive-600' : ''}`} />

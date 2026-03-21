@@ -71,19 +71,22 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-5 animate-in py-6 max-w-3xl mx-auto px-4 sm:px-6 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-            {getGreeting()}, {firstName}!
-          </h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            <span className="font-semibold text-olive-600">{totalItems}</span> prodotti nel frigo
-            {expiringSoonItems.length > 0 && (
-              <> &middot; <span className="text-amber-600 font-semibold">{expiringSoonItems.length}</span> in scadenza</>
-            )}
-          </p>
-        </div>
-        <ActionButtons />
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+          {getGreeting()}, {firstName}
+        </h1>
+        <p className="text-slate-500 text-sm mt-1 flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 bg-olive-50 text-olive-700 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+            <Refrigerator className="w-3 h-3" />
+            {totalItems} prodotti
+          </span>
+          {expiringSoonItems.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+              <AlertTriangle className="w-3 h-3" />
+              {expiringSoonItems.length} in scadenza
+            </span>
+          )}
+        </p>
       </div>
 
       {/* XP Bar */}

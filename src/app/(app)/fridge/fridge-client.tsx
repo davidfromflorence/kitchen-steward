@@ -365,21 +365,21 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 pb-24">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+      <div className="flex items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Il mio frigo</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             <span className="font-semibold text-olive-600">{freshCount}</span> ingredienti freschi
           </p>
         </div>
-        <div className="relative flex-1 sm:flex-none sm:w-52">
+        <div className="relative w-40 sm:w-52">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Cerca..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 w-full"
+            className="pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 w-full"
           />
         </div>
       </div>
