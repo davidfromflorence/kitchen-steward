@@ -97,6 +97,9 @@ export default async function SettingsPage() {
         </div>
       </div>
 
+      {/* Food Profile */}
+      <FoodProfileEditor />
+
       {/* Household Card */}
       {household && (
         <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -144,9 +147,6 @@ export default async function SettingsPage() {
           </div>
         </div>
       )}
-
-      {/* Food Profile */}
-      <FoodProfileEditor />
 
       {/* Theme */}
       <ThemePicker />
