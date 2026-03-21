@@ -140,11 +140,11 @@ export default function DailyChallenge() {
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-olive-600" />
           <h3 className="text-sm font-bold text-slate-800">
-            Daily Challenges
+            Sfide del giorno
           </h3>
         </div>
         <span className="text-xs font-medium text-slate-400">
-          {completedCount}/{chips.length} done
+          {completedCount}/{chips.length}
         </span>
       </div>
 
@@ -160,8 +160,8 @@ export default function DailyChallenge() {
         </div>
       </div>
 
-      {/* Chips row */}
-      <div className="px-5 pb-3 flex gap-2 overflow-x-auto scrollbar-hide">
+      {/* Challenge cards - visual grid instead of tiny chips */}
+      <div className="px-5 pb-3 grid grid-cols-3 sm:grid-cols-6 gap-2">
         {chips.map((chip) => {
           const done = hasCompleted(chip.dedupeKey)
           const isActive = activeChip?.id === chip.id
@@ -169,25 +169,30 @@ export default function DailyChallenge() {
             <button
               key={chip.id}
               onClick={() => !done && openChip(chip)}
-              className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
+              disabled={done}
+              className={`relative flex flex-col items-center gap-1 px-2 py-3 rounded-xl text-center transition-all ${
                 done
-                  ? 'bg-olive-100 text-olive-600 border border-olive-200'
+                  ? 'bg-olive-50 border border-olive-200'
                   : isActive
-                    ? 'bg-olive-600 text-white shadow-sm border border-olive-600'
-                    : 'bg-slate-50 text-slate-600 border border-slate-200 hover:border-olive-300 hover:bg-olive-50 active:scale-95'
+                    ? 'bg-olive-600 text-white shadow-sm border border-olive-600 scale-[1.02]'
+                    : 'bg-slate-50 border border-slate-200 hover:border-olive-300 hover:bg-olive-50 active:scale-95'
               }`}
             >
-              {done ? (
-                <Check className="w-3 h-3" />
-              ) : (
-                <span className="text-sm leading-none">{chip.emoji}</span>
+              {done && (
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-olive-600 flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                </div>
               )}
-              {chip.type === 'quiz' && <Brain className="w-3 h-3" />}
-              {chip.type === 'fact' && <BookOpen className="w-3 h-3" />}
-              {chip.type === 'flashcard' && <Zap className="w-3 h-3" />}
-              <span className="max-w-[100px] truncate">{chip.emoji} {chip.type === 'quiz' ? 'Quiz' : chip.type === 'fact' ? chip.label : 'Flashcard'}</span>
+              <span className="text-xl leading-none">{chip.emoji}</span>
+              <span className={`text-[10px] font-semibold ${
+                isActive ? 'text-white/80' : done ? 'text-olive-600' : 'text-slate-500'
+              }`}>
+                {chip.type === 'quiz' ? 'Quiz' : chip.type === 'fact' ? 'Fatto' : 'Card'}
+              </span>
               {!done && (
-                <span className="text-[10px] opacity-70">+{chip.xp}</span>
+                <span className={`text-[9px] font-bold ${isActive ? 'text-white/60' : 'text-olive-500'}`}>
+                  +{chip.xp} XP
+                </span>
               )}
             </button>
           )
@@ -337,7 +342,7 @@ export default function DailyChallenge() {
             <Check className="w-4 h-4 text-emerald-600" />
           </div>
           <p className="text-sm text-slate-600">
-            All challenges completed today! Come back tomorrow.
+            Tutte le sfide completate! Torna domani.
           </p>
         </div>
       )}
@@ -348,7 +353,7 @@ export default function DailyChallenge() {
           href="/learn"
           className="flex items-center gap-1.5 text-sm font-semibold text-olive-600 hover:underline"
         >
-          Explore more challenges
+          Altre sfide
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>

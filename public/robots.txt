@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /fridge
+Disallow: /recipes
+Disallow: /shopping-list
+Disallow: /analytics
+Disallow: /badges
+Disallow: /learn
+Disallow: /household
+Disallow: /settings
+Disallow: /setup
+Disallow: /api/
+
+Sitemap: https://kitchen-steward.vercel.app/sitemap.xml

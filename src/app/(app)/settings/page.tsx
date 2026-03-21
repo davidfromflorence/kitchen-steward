@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { Settings, Home, ArrowRight, LogOut } from 'lucide-react'
 import { logout } from '@/app/login/actions'
 import { WhatsAppLinkForm } from './whatsapp-link-form'
+import ThemePicker from './theme-picker'
+import FoodProfileEditor from './food-profile-editor'
 
 function getInitials(name: string | null, email: string | undefined): string {
   if (name) {
@@ -142,6 +144,12 @@ export default async function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Food Profile */}
+      <FoodProfileEditor />
+
+      {/* Theme */}
+      <ThemePicker />
 
       {/* WhatsApp Integration */}
       <WhatsAppLinkForm phoneNumber={profile.whatsapp_number ?? null} />

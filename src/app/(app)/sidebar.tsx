@@ -10,8 +10,11 @@ import {
   ChefHat,
   BookOpen,
   Settings,
+  Moon,
+  Sun,
 } from 'lucide-react'
 import { useGamification } from './gamification-context'
+import { useTheme } from './theme-context'
 
 interface SidebarProps {
   userName?: string
@@ -29,10 +32,10 @@ const mainNav = [
 
 const bottomNav = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Fridge', href: '/fridge', icon: Refrigerator },
-  { label: 'Recipes', href: '/recipes', icon: ChefHat },
-  { label: 'Shopping', href: '/shopping-list', icon: ShoppingCart },
-  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Frigo', href: '/fridge', icon: Refrigerator },
+  { label: 'Ricette', href: '/recipes', icon: ChefHat },
+  { label: 'Spesa', href: '/shopping-list', icon: ShoppingCart },
+  { label: 'Impara', href: '/learn', icon: BookOpen },
 ]
 
 function isActive(pathname: string, href: string): boolean {
@@ -46,9 +49,38 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
   const pathname = usePathname()
   const initials = userName.charAt(0).toUpperCase()
   const { level, progressPercent, streak } = useGamification()
+  const { resolved, setTheme } = useTheme()
 
   return (
     <>
+      {/* Mobile Top Bar */}
+      <div className="md:hidden fixed top-0 inset-x-0 z-30 flex items-center justify-between bg-white/90 backdrop-blur-sm border-b border-slate-200 px-4 py-3 safe-top">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-olive-600">
+            <ChefHat className="h-4 w-4 text-white" />
+          </div>
+          <span className="text-sm font-bold text-slate-900">Kitchen Steward</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTheme(resolved === 'dark' ? 'light' : 'dark')}
+            className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            {resolved === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
+          <Link
+            href="/settings"
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+              isActive(pathname, '/settings')
+                ? 'bg-olive-100 text-olive-700'
+                : 'bg-slate-100 text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Settings className="h-5 w-5" />
+          </Link>
+        </div>
+      </div>
+
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 z-30 w-64 flex-col bg-white border-r border-slate-200">
         {/* Logo */}
@@ -100,6 +132,17 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
             Settings
           </Link>
         </nav>
+
+        {/* Theme toggle */}
+        <div className="px-3 pb-1">
+          <button
+            onClick={() => setTheme(resolved === 'dark' ? 'light' : 'dark')}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors w-full"
+          >
+            {resolved === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {resolved === 'dark' ? 'Modalità chiara' : 'Modalità scura'}
+          </button>
+        </div>
 
         {/* XP Progress */}
         <div className="px-4 py-3 border-t border-slate-200">

@@ -149,6 +149,22 @@ export async function useItem(formData: FormData) {
   return { success: true }
 }
 
+export async function updateQuantity(id: string, newQuantity: number) {
+  const { supabase } = await getAuthAndHousehold()
+
+  if (newQuantity <= 0) {
+    await supabase.from('inventory_items').delete().eq('id', id)
+  } else {
+    await supabase
+      .from('inventory_items')
+      .update({ quantity: Math.round(newQuantity * 100) / 100 })
+      .eq('id', id)
+  }
+
+  revalidateAll()
+  return { success: true }
+}
+
 export async function updateExpiry(id: string, expiryDate: string) {
   const { supabase } = await getAuthAndHousehold()
 
@@ -196,12 +212,21 @@ export async function moveItem(id: string, targetZone: string) {
   return { success: true }
 }
 
-export async function logMeal(mealDescription: string): Promise<{
+export async function logMeal(
+  mealDescription: string,
+  userProfile?: { portionSize: string; weight: number | null; activityLevel: string; dietNotes: string } | null,
+): Promise<{
   success?: boolean
   error?: string
   used: Array<{ name: string; subtracted: number; unit: string; removed: boolean }>
 }> {
   const { supabase, householdId } = await getAuthAndHousehold()
+
+  // Get household member count for portion estimation
+  const { count: memberCount } = await supabase
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('household_id', householdId)
 
   const { data: inventory } = await supabase
     .from('inventory_items')
@@ -213,16 +238,47 @@ export async function logMeal(mealDescription: string): Promise<{
     return { error: 'Il frigo è vuoto', used: [] }
   }
 
-  const inventoryList = inventory.map(i => `${i.name} (${i.quantity} ${i.unit})`).join(', ')
-
   const { GoogleGenAI } = await import('@google/genai')
   const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! })
 
   // Number each item so AI can reference by ID
   const numberedList = inventory.map((i, idx) => `[${idx}] ${i.name} (${i.quantity} ${i.unit})`).join('\n')
+  const people = memberCount || 1
+
+  // Build portion multiplier map from user profile
+  const portionMultipliers: Record<string, number> = {
+    piccola: 0.65,
+    normale: 1.0,
+    grande: 1.35,
+    abbondante: 1.7,
+  }
+  const userMultiplier = userProfile ? (portionMultipliers[userProfile.portionSize] ?? 1.0) : 1.0
+
+  // Build user profile section for the prompt
+  let profileSection = ''
+  if (userProfile) {
+    const parts: string[] = []
+    if (userMultiplier !== 1.0) {
+      parts.push(`L'utente mangia porzioni ${userProfile.portionSize === 'piccola' || userProfile.portionSize === 'normale' ? 'piccole' : 'grandi'} (moltiplicatore: ${userMultiplier}x rispetto a porzione standard)`)
+    }
+    if (userProfile.weight) {
+      parts.push(`Peso: ${userProfile.weight}kg`)
+    }
+    if (userProfile.activityLevel && userProfile.activityLevel !== 'moderato') {
+      const actLabels: Record<string, string> = { sedentario: 'sedentario (mangia meno)', attivo: 'attivo (mangia di più)', molto_attivo: 'molto attivo (mangia molto di più)' }
+      parts.push(`Livello attività: ${actLabels[userProfile.activityLevel] || userProfile.activityLevel}`)
+    }
+    if (userProfile.dietNotes?.trim()) {
+      parts.push(`Note dell'utente: "${userProfile.dietNotes.trim()}"`)
+    }
+    if (parts.length > 0) {
+      profileSection = `\nPROFILO DELL'UTENTE CHE HA MANGIATO:\n${parts.join('\n')}\nUSA QUESTE INFO per calibrare le quantità. Se il moltiplicatore è 0.65x, una porzione di pasta è ~52g, non 80g. Se è 1.7x, una porzione è ~136g.\n`
+    }
+  }
 
   const prompt = `L'utente ha mangiato: "${mealDescription}"
-
+Nucleo familiare: ${people} ${people === 1 ? 'persona' : 'persone'}
+${profileSection}
 Prodotti nel frigo (con indice):
 ${numberedList}
 
@@ -230,11 +286,21 @@ COMPITO: identifica SOLO i prodotti che sono stati EFFETTIVAMENTE usati per prep
 
 REGOLE IMPORTANTI:
 - Usa SOLO l'indice [N] per identificare i prodotti
+- Se il piatto NON specifica "per 1" o "per me", assumi sia stato preparato SOLO per chi sta parlando (1 persona)
+- Se specifica "per 2", "per tutti", "per la famiglia", moltiplica per quel numero
 - "pasta al pesto" usa PASTA (tipo Farfalle, Spaghetti ecc) e PESTO, NON pasta sfoglia, NON pasta fresca per tramezzini
 - "frittata" usa UOVA e verdure, NON tutto ciò che contiene la parola
 - Sii PRECISO: se il piatto è "pasta al pesto" non includere mozzarella, pollo, etc.
-- Stima quantità per 1 porzione italiana: pasta ~80g, riso ~80g, pesto ~30g, pollo ~150g, uova 2pz, mozzarella 1pz, verdure ~150g
-- Se il piatto menziona "per 2" o "per 4", moltiplica le quantità
+
+PORZIONI STANDARD PER 1 PERSONA (da moltiplicare per il moltiplicatore del profilo se presente):
+- Pasta: ~80g, Riso: ~80g, Pesto: ~30g, Sugo: ~80g
+- Pollo/Carne: ~150g, Pesce: ~180g
+- Uova: 2pz, Mozzarella: 1pz (125g)
+- Verdure: ~150g, Insalata: ~80g
+- Pane: 2 fette (~60g), Latte: ~200ml
+- Formaggio grattugiato: ~20g, Olio: ~15ml, Burro: ~15g
+
+UNITA': rispetta l'unità nel frigo. Se il frigo dice "pz", sottrai in pezzi. Se dice "g", sottrai in grammi. Se dice "ml", in ml. NON convertire.
 
 Rispondi SOLO con JSON array:
 [{"index": N, "subtract": quantità_da_sottrarre}]

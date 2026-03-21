@@ -12,6 +12,7 @@ import {
   Sparkles,
   Brain,
   Lightbulb,
+  Bookmark,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -25,7 +26,7 @@ import { FOOD_FACTS, FLASHCARDS, QUIZ_QUESTIONS } from '@/lib/learn-data'
 /* ------------------------------------------------------------------ */
 
 function QuizTab() {
-  const { awardXP, hasCompleted } = useGamification()
+  const { awardXP, hasCompleted, toggleSaved, isSaved } = useGamification()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [showResult, setShowResult] = useState(false)
@@ -191,15 +192,18 @@ function QuizTab() {
                     <Sparkles className="w-4 h-4" />
                     +20 XP
                   </motion.span>
-                  <span className="text-sm text-slate-500">
-                    Auto-advancing...
-                  </span>
                 </>
               ) : (
                 <span className="text-sm text-red-500 font-medium">
-                  Try again next time
+                  Riprova la prossima volta
                 </span>
               )}
+              <button
+                onClick={() => toggleSaved(`quiz:${question.id}`)}
+                className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-olive-600 transition-colors"
+              >
+                <Bookmark className={`w-4 h-4 ${isSaved(`quiz:${question.id}`) ? 'fill-olive-600 text-olive-600' : ''}`} />
+              </button>
             </motion.div>
           )}
         </motion.div>
@@ -233,7 +237,7 @@ function QuizTab() {
 /* ------------------------------------------------------------------ */
 
 function FlashcardsTab() {
-  const { awardXP, hasCompleted } = useGamification()
+  const { awardXP, hasCompleted, toggleSaved, isSaved } = useGamification()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
 
@@ -321,6 +325,13 @@ function FlashcardsTab() {
               <p className="text-white text-base font-medium leading-relaxed">
                 {card.answer}
               </p>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleSaved(`card:${card.id}`) }}
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-white/80 hover:text-white transition-colors"
+              >
+                <Bookmark className={`w-4 h-4 ${isSaved(`card:${card.id}`) ? 'fill-white' : ''}`} />
+                {isSaved(`card:${card.id}`) ? 'Salvata' : 'Salva'}
+              </button>
             </div>
           </motion.div>
         </div>
@@ -376,7 +387,7 @@ function FlashcardsTab() {
 /* ------------------------------------------------------------------ */
 
 function FoodFactsTab() {
-  const { awardXP, hasCompleted } = useGamification()
+  const { awardXP, hasCompleted, toggleSaved, isSaved } = useGamification()
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const discoveredCount = FOOD_FACTS.filter((f) =>
@@ -449,15 +460,23 @@ function FoodFactsTab() {
 
               <AnimatePresence mode="wait">
                 {expanded ? (
-                  <motion.p
+                  <motion.div
                     key="full"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="text-sm text-slate-700 leading-relaxed mt-1"
                   >
-                    {fact.fact}
-                  </motion.p>
+                    <p className="text-sm text-slate-700 leading-relaxed mt-1">
+                      {fact.fact}
+                    </p>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleSaved(`fact:${fact.id}`) }}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-olive-600 hover:text-olive-700 transition-colors"
+                    >
+                      <Bookmark className={`w-3.5 h-3.5 ${isSaved(`fact:${fact.id}`) ? 'fill-olive-600' : ''}`} />
+                      {isSaved(`fact:${fact.id}`) ? 'Salvato' : 'Salva'}
+                    </button>
+                  </motion.div>
                 ) : (
                   <motion.p
                     key="truncated"
@@ -479,11 +498,100 @@ function FoodFactsTab() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Saved Tab                                                         */
+/* ------------------------------------------------------------------ */
+
+function SavedTab() {
+  const { savedItems, toggleSaved } = useGamification()
+
+  const savedQuizzes = QUIZ_QUESTIONS.filter((q) => savedItems.includes(`quiz:${q.id}`))
+  const savedCards = FLASHCARDS.filter((c) => savedItems.includes(`card:${c.id}`))
+  const savedFacts = FOOD_FACTS.filter((f) => savedItems.includes(`fact:${f.id}`))
+
+  const isEmpty = savedQuizzes.length === 0 && savedCards.length === 0 && savedFacts.length === 0
+
+  if (isEmpty) {
+    return (
+      <div className="text-center py-12">
+        <Bookmark className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+        <p className="text-slate-500 text-sm">Nessun elemento salvato.</p>
+        <p className="text-slate-400 text-xs mt-1">Salva quiz, flashcard e curiosità per rivederli qui.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {savedCards.length > 0 && (
+        <div>
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Flashcard</h3>
+          <div className="flex flex-col gap-2">
+            {savedCards.map((card) => (
+              <div key={card.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-start gap-3">
+                <span className="text-xl">{card.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800">{card.question}</p>
+                  <p className="text-xs text-slate-500 mt-1">{card.answer}</p>
+                </div>
+                <button onClick={() => toggleSaved(`card:${card.id}`)} className="text-olive-600 hover:text-red-500 transition-colors shrink-0">
+                  <Bookmark className="w-4 h-4 fill-current" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {savedQuizzes.length > 0 && (
+        <div>
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Quiz</h3>
+          <div className="flex flex-col gap-2">
+            {savedQuizzes.map((q) => (
+              <div key={q.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-start gap-3">
+                <span className="text-xl">{q.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800">{q.question}</p>
+                  <p className="text-xs text-emerald-600 mt-1">{q.options[q.correctIndex]}</p>
+                  {q.explanation && <p className="text-xs text-slate-400 mt-0.5">{q.explanation}</p>}
+                </div>
+                <button onClick={() => toggleSaved(`quiz:${q.id}`)} className="text-olive-600 hover:text-red-500 transition-colors shrink-0">
+                  <Bookmark className="w-4 h-4 fill-current" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {savedFacts.length > 0 && (
+        <div>
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Curiosità</h3>
+          <div className="flex flex-col gap-2">
+            {savedFacts.map((fact) => (
+              <div key={fact.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-start gap-3">
+                <span className="text-xl">{fact.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-slate-500">{fact.chip}</p>
+                  <p className="text-sm text-slate-700 mt-0.5">{fact.fact}</p>
+                </div>
+                <button onClick={() => toggleSaved(`fact:${fact.id}`)} className="text-olive-600 hover:text-red-500 transition-colors shrink-0">
+                  <Bookmark className="w-4 h-4 fill-current" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main Learn Client                                                 */
 /* ------------------------------------------------------------------ */
 
 export default function LearnClient() {
-  const { totalXP, level, hasCompleted } = useGamification()
+  const { totalXP, level, hasCompleted, savedItems } = useGamification()
 
   const statsFactsDiscovered = FOOD_FACTS.filter((f) =>
     hasCompleted(`fact:${f.id}`)
@@ -577,7 +685,11 @@ export default function LearnClient() {
           </TabsTrigger>
           <TabsTrigger value={2} className="flex-1 gap-1.5">
             <Lightbulb className="w-4 h-4" />
-            Food Facts
+            Facts
+          </TabsTrigger>
+          <TabsTrigger value={3} className="flex-1 gap-1.5">
+            <Bookmark className="w-4 h-4" />
+            Salvati{savedItems.length > 0 && ` (${savedItems.length})`}
           </TabsTrigger>
         </TabsList>
 
@@ -589,6 +701,9 @@ export default function LearnClient() {
         </TabsContent>
         <TabsContent value={2} className="mt-6">
           <FoodFactsTab />
+        </TabsContent>
+        <TabsContent value={3} className="mt-6">
+          <SavedTab />
         </TabsContent>
       </Tabs>
 

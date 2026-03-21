@@ -9,6 +9,7 @@ interface GamificationState {
   streak: number
   lastLoginDate: string
   completedActions: string[]
+  savedItems: string[]
 }
 
 interface GamificationContextValue {
@@ -16,11 +17,14 @@ interface GamificationContextValue {
   streak: number
   lastLoginDate: string
   completedActions: string[]
+  savedItems: string[]
   level: number
   xpToNextLevel: number
   progressPercent: number
   awardXP: (event: string, xp: number, dedupeKey?: string) => boolean
   hasCompleted: (dedupeKey: string) => boolean
+  toggleSaved: (key: string) => void
+  isSaved: (key: string) => boolean
 }
 
 /* ── Constants ────────────────────────────────────────── */
@@ -33,6 +37,7 @@ const defaultState: GamificationState = {
   streak: 0,
   lastLoginDate: '',
   completedActions: [],
+  savedItems: [],
 }
 
 /* ── Helpers ──────────────────────────────────────────── */
@@ -51,6 +56,7 @@ function loadState(): GamificationState {
         streak: parsed.streak ?? 0,
         lastLoginDate: parsed.lastLoginDate ?? '',
         completedActions: Array.isArray(parsed.completedActions) ? parsed.completedActions : [],
+        savedItems: Array.isArray(parsed.savedItems) ? parsed.savedItems : [],
       }
     }
   } catch {
@@ -196,6 +202,29 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     [state.completedActions],
   )
 
+  const toggleSaved = useCallback(
+    (key: string) => {
+      setState((prev) => {
+        const next = { ...prev }
+        if (prev.savedItems.includes(key)) {
+          next.savedItems = prev.savedItems.filter((k) => k !== key)
+        } else {
+          next.savedItems = [...prev.savedItems, key]
+        }
+        saveState(next)
+        return next
+      })
+    },
+    [],
+  )
+
+  const isSaved = useCallback(
+    (key: string): boolean => {
+      return state.savedItems.includes(key)
+    },
+    [state.savedItems],
+  )
+
   // Compute derived values — return zeros until mounted to avoid hydration mismatch
   const totalXP = mounted ? state.totalXP : 0
   const level = Math.floor(totalXP / XP_PER_LEVEL) + 1
@@ -207,11 +236,14 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     streak: mounted ? state.streak : 0,
     lastLoginDate: mounted ? state.lastLoginDate : '',
     completedActions: mounted ? state.completedActions : [],
+    savedItems: mounted ? state.savedItems : [],
     level,
     xpToNextLevel,
     progressPercent,
     awardXP,
     hasCompleted,
+    toggleSaved,
+    isSaved,
   }
 
   return (

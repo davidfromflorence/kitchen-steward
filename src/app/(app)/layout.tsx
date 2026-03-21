@@ -34,7 +34,7 @@ export default async function AppLayout({
     <ClientProviders>
       <div className="min-h-screen bg-cream">
         <Sidebar userName={userName} userRole="Household Head" />
-        <main className="md:ml-64 min-h-screen pb-20 md:pb-0">
+        <main className="md:ml-64 min-h-screen pt-14 md:pt-0 pb-20 md:pb-0">
           {children}
         </main>
       </div>

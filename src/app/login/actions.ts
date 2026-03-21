@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createClient } from '@/utils/supabase/server'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kitchen-steward.vercel.app'
@@ -16,11 +17,29 @@ export async function login(formData: FormData) {
     redirect(`/login?tab=signin&message=${encodeURIComponent('Please enter both email and password')}`)
   }
 
+  const remember = formData.get('remember') === 'on'
+
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
     console.error('[login error]', error.message, '| email:', email)
     redirect(`/login?tab=signin&message=${encodeURIComponent(error.message)}`)
+  }
+
+  // When "Ricordami" is unchecked, make session cookies expire with the browser
+  if (!remember) {
+    const cookieStore = await cookies()
+    for (const cookie of cookieStore.getAll()) {
+      if (cookie.name.startsWith('sb-')) {
+        cookieStore.set(cookie.name, cookie.value, {
+          path: '/',
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          // No maxAge = session cookie, expires when browser closes
+        })
+      }
+    }
   }
 
   revalidatePath('/', 'layout')

@@ -6,6 +6,7 @@ import {
   buildTwiMLResponse,
   formatInventoryList,
 } from '@/lib/whatsapp'
+import { rateLimit } from '@/lib/rate-limit'
 
 // ---------------------------------------------------------------------------
 // Clients
@@ -433,6 +434,12 @@ export async function POST(request: Request) {
     const formData = await request.formData()
     const body = (formData.get('Body') as string | null)?.trim() ?? ''
     const from = (formData.get('From') as string | null) ?? ''
+
+    // Rate limit: 20 messages per minute per phone number
+    const { success: withinLimit } = rateLimit(`wa:${from}`, { limit: 20, windowMs: 60_000 })
+    if (!withinLimit) {
+      return twiml('Stai inviando troppi messaggi. Riprova tra un minuto.')
+    }
     const numMedia = parseInt((formData.get('NumMedia') as string) || '0', 10)
 
     const phoneNumber = parseWhatsAppNumber(from)

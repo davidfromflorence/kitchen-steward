@@ -24,6 +24,12 @@ export const metadata: Metadata = {
     'kitchen steward',
     'risparmio spesa',
   ],
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Kitchen Steward',
+  },
   openGraph: {
     title: 'Kitchen Steward — Riduci lo spreco alimentare con l\'AI',
     description: 'Gestisci il frigo, riduci gli sprechi, risparmia. Inventario smart, ricette AI, WhatsApp integrato.',
@@ -50,7 +56,30 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it" className={cn('font-sans', publicSans.variable)}>
-      <body>{children}</body>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#587519" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('ks-theme');var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme:dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body>
+        {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js')
+                })
+              }
+            `,
+          }}
+        />
+      </body>
     </html>
   )
 }

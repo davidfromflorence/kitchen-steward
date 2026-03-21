@@ -126,6 +126,14 @@ export default async function LoginPage({
             Password
           </label>
           <PasswordInput name="password" placeholder="La tua password" />
+          <label className="flex items-center gap-2 mt-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="remember"
+              className="w-4 h-4 rounded border-slate-300 text-olive-600 focus:ring-olive-500"
+            />
+            <span className="text-sm text-slate-600">Ricordami</span>
+          </label>
           <button
             type="submit"
             className="mt-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-3 font-semibold active:scale-95 transition-all"

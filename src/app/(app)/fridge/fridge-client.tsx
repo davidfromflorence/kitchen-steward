@@ -20,11 +20,14 @@ import {
   Repeat,
   Pause,
   CalendarDays,
+  CheckSquare,
+  Square,
 } from 'lucide-react'
-import { deleteItem, useItem, moveItem, logMeal, updateExpiry } from '@/app/actions/inventory'
+import { deleteItem, moveItem, logMeal, updateExpiry, updateQuantity } from '@/app/actions/inventory'
 import { createHabitFromDescription, saveHabit, getHabits, deleteHabit } from '@/app/actions/habits'
 import type { HabitItem, Habit } from '@/app/actions/habits'
 import AddItemModal from './add-item-modal'
+import { loadFoodProfile } from '@/lib/food-profile'
 
 interface InventoryItem {
   id: string
@@ -148,6 +151,15 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   const [habitDraft, setHabitDraft] = useState<{ description: string; items: HabitItem[]; frequency: string; times: number } | null>(null)
   const [habitList, setHabitList] = useState<Habit[]>([])
   const [habitError, setHabitError] = useState<string | null>(null)
+  // Quantity adjustment
+  const [qtyModalItem, setQtyModalItem] = useState<InventoryItem | null>(null)
+  const [qtyMode, setQtyMode] = useState<'use' | 'add'>('use')
+  const [qtyAmount, setQtyAmount] = useState(0)
+  const [qtyLoading, setQtyLoading] = useState(false)
+  // Batch select
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [batchLoading, setBatchLoading] = useState(false)
   // Expiry edit
   const [editingExpiryId, setEditingExpiryId] = useState<string | null>(null)
   const [editingExpiryDate, setEditingExpiryDate] = useState('')
@@ -175,13 +187,59 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
     setMealLoading(true)
     setMealResult(null)
     try {
-      const result = await logMeal(mealInput.trim())
+      const profile = loadFoodProfile()
+      const result = await logMeal(mealInput.trim(), profile)
       setMealResult(result)
       if (result.success) setMealInput('')
     } catch {
       setMealResult({ error: 'Errore. Riprova.', used: [] })
     } finally {
       setMealLoading(false)
+    }
+  }
+
+  function openQtyModal(item: InventoryItem, mode: 'use' | 'add' = 'use') {
+    setQtyModalItem(item)
+    setQtyMode(mode)
+    setQtyAmount(0)
+  }
+
+  async function handleApplyQty() {
+    if (!qtyModalItem || qtyAmount <= 0 || qtyLoading) return
+    setQtyLoading(true)
+    setPendingId(qtyModalItem.id)
+    try {
+      const newQty = qtyMode === 'use'
+        ? qtyModalItem.quantity - qtyAmount
+        : qtyModalItem.quantity + qtyAmount
+      await updateQuantity(qtyModalItem.id, newQty)
+    } finally {
+      setQtyLoading(false)
+      setPendingId(null)
+      setQtyModalItem(null)
+    }
+  }
+
+  function toggleSelectItem(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function handleBatchDelete() {
+    if (selectedIds.size === 0 || batchLoading) return
+    setBatchLoading(true)
+    try {
+      for (const id of selectedIds) {
+        await updateQuantity(id, 0)
+      }
+    } finally {
+      setBatchLoading(false)
+      setSelectedIds(new Set())
+      setSelectMode(false)
     }
   }
 
@@ -258,7 +316,7 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
     setHabitList(prev => prev.filter(h => h.id !== id))
   }
 
-  async function handleAction(formData: FormData, action: typeof deleteItem | typeof useItem) {
+  async function handleAction(formData: FormData, action: typeof deleteItem) {
     const id = formData.get('id') as string
     setPendingId(id)
     try { await action(formData) } finally { setPendingId(null) }
@@ -330,6 +388,15 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
           >
             <Plus className="w-4 h-4" />
             Aggiungi
+          </button>
+          <button
+            onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()) }}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm shrink-0 active:scale-95 ${
+              selectMode ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+            }`}
+          >
+            <CheckSquare className="w-4 h-4" />
+            {selectMode ? 'Annulla' : 'Seleziona'}
           </button>
           <button
             onClick={openHabitModal}
@@ -457,26 +524,46 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
                       )}
                       {/* Always-visible action buttons */}
                       <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100">
-                        <form action={(fd) => handleAction(fd, useItem)} className="flex-1">
-                          <input type="hidden" name="id" value={item.id} />
+                        {selectMode ? (
                           <button
-                            type="submit"
-                            disabled={isPending}
-                            className="w-full inline-flex items-center justify-center gap-1 text-xs font-medium text-olive-700 bg-olive-50 hover:bg-olive-100 rounded-lg py-1.5 transition-colors"
+                            onClick={() => toggleSelectItem(item.id)}
+                            className={`flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium rounded-lg py-1.5 transition-colors ${
+                              selectedIds.has(item.id)
+                                ? 'text-white bg-olive-600'
+                                : 'text-slate-600 bg-slate-100 hover:bg-slate-200'
+                            }`}
                           >
-                            <Minus className="w-3 h-3" /> Usa
+                            {selectedIds.has(item.id) ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+                            {selectedIds.has(item.id) ? 'Selezionato' : 'Seleziona'}
                           </button>
-                        </form>
-                        <form action={(fd) => handleAction(fd, deleteItem)} className="flex-1">
-                          <input type="hidden" name="id" value={item.id} />
-                          <button
-                            type="submit"
-                            disabled={isPending}
-                            className="w-full inline-flex items-center justify-center gap-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg py-1.5 transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" /> Elimina
-                          </button>
-                        </form>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => openQtyModal(item, 'use')}
+                              disabled={isPending}
+                              className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium text-olive-700 bg-olive-50 hover:bg-olive-100 rounded-lg py-1.5 transition-colors"
+                            >
+                              <Minus className="w-3 h-3" /> Usa
+                            </button>
+                            <button
+                              onClick={() => openQtyModal(item, 'add')}
+                              disabled={isPending}
+                              className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg py-1.5 transition-colors"
+                            >
+                              <Plus className="w-3 h-3" /> Aggiungi
+                            </button>
+                            <form action={(fd) => handleAction(fd, deleteItem)}>
+                              <input type="hidden" name="id" value={item.id} />
+                              <button
+                                type="submit"
+                                disabled={isPending}
+                                className="inline-flex items-center justify-center text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg py-1.5 px-2 transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </form>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -562,14 +649,11 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
                                   {days <= 0 ? '!' : `${days}g`}
                                 </button>
                               )}
-                              <div className="flex gap-1 shrink-0">
-                                <form action={(fd) => handleAction(fd, useItem)} onClick={(e) => e.stopPropagation()}>
-                                  <input type="hidden" name="id" value={item.id} />
-                                  <button type="submit" disabled={isPending} className="text-olive-600 hover:bg-olive-50 p-1 rounded-md transition-colors">
-                                    <Minus className="w-3.5 h-3.5" />
-                                  </button>
-                                </form>
-                                <form action={(fd) => handleAction(fd, deleteItem)} onClick={(e) => e.stopPropagation()}>
+                              <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <button onClick={() => openQtyModal(item)} disabled={isPending} className="text-olive-600 hover:bg-olive-50 p-1 rounded-md transition-colors">
+                                  <Minus className="w-3.5 h-3.5" />
+                                </button>
+                                <form action={(fd) => handleAction(fd, deleteItem)}>
                                   <input type="hidden" name="id" value={item.id} />
                                   <button type="submit" disabled={isPending} className="text-red-400 hover:bg-red-50 p-1 rounded-md transition-colors">
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -625,6 +709,24 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
         </div>
       )}
 
+      {/* Batch delete bar */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-40">
+          <button
+            onClick={handleBatchDelete}
+            disabled={batchLoading}
+            className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg active:scale-95 transition-all disabled:opacity-50"
+          >
+            {batchLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+            Elimina {selectedIds.size} {selectedIds.size === 1 ? 'prodotto' : 'prodotti'}
+          </button>
+        </div>
+      )}
+
       <AddItemModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
 
       {/* "Ho mangiato" Modal */}
@@ -640,6 +742,22 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
                 <p className="text-xs text-slate-500">Scrivi cosa hai mangiato e aggiorno il frigo</p>
               </div>
             </div>
+
+            {/* Profile indicator */}
+            {(() => {
+              const p = loadFoodProfile()
+              if (p.portionSize === 'normale' && !p.dietNotes) return null
+              const labels: Record<string, string> = { piccola: 'Porzioni piccole', normale: 'Porzioni normali', grande: 'Porzioni grandi', abbondante: 'Porzioni abbondanti' }
+              const emojis: Record<string, string> = { piccola: '🍽️', normale: '🍛', grande: '🍝', abbondante: '🥘' }
+              return (
+                <div className="mb-3 flex items-center gap-2 text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
+                  <span>{emojis[p.portionSize] || '🍛'}</span>
+                  <span>{labels[p.portionSize] || 'Porzioni normali'}</span>
+                  <span className="text-slate-300">·</span>
+                  <a href="/settings" className="text-olive-600 hover:underline">Modifica profilo</a>
+                </div>
+              )
+            })()}
 
             {/* Result */}
             {mealResult && (
@@ -888,6 +1006,156 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
           </div>
         </div>
       )}
+
+      {/* Quantity adjustment modal */}
+      {qtyModalItem && (() => {
+        const newTotal = qtyMode === 'use'
+          ? qtyModalItem.quantity - qtyAmount
+          : qtyModalItem.quantity + qtyAmount
+        const barPct = qtyModalItem.quantity > 0
+          ? Math.min((newTotal / qtyModalItem.quantity) * 100, 100)
+          : 0
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => !qtyLoading && setQtyModalItem(null)}>
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 pb-8 sm:pb-5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${categoryGradient(qtyModalItem.category)} flex items-center justify-center`}>
+                  <span className="text-lg">{categoryEmoji(qtyModalItem.category)}</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">{qtyModalItem.name}</h3>
+                  <p className="text-xs text-slate-500">
+                    Hai: {qtyModalItem.quantity} {qtyModalItem.unit}
+                  </p>
+                </div>
+              </div>
+
+              {/* Mode toggle */}
+              <div className="flex bg-slate-100 rounded-xl p-1 mb-4">
+                <button
+                  onClick={() => { setQtyMode('use'); setQtyAmount(0) }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    qtyMode === 'use' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                  }`}
+                >
+                  Usa
+                </button>
+                <button
+                  onClick={() => { setQtyMode('add'); setQtyAmount(0) }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    qtyMode === 'add' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                  }`}
+                >
+                  Aggiungi
+                </button>
+              </div>
+
+              {/* Visual bar (use mode only) */}
+              {qtyMode === 'use' && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                    <span>Rimane: {Math.max(Math.round(newTotal * 100) / 100, 0)} {qtyModalItem.unit}</span>
+                    <span>{Math.max(Math.round(barPct), 0)}%</span>
+                  </div>
+                  <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        barPct <= 0 ? 'bg-red-400' : barPct <= 25 ? 'bg-amber-400' : 'bg-olive-500'
+                      }`}
+                      style={{ width: `${Math.max(barPct, 0)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Quick % buttons (use mode) */}
+              {qtyMode === 'use' && (
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {[25, 50, 75, 100].map((p) => {
+                    const amount = Math.round(qtyModalItem.quantity * p / 100 * 100) / 100
+                    const isActive = Math.abs(qtyAmount - amount) < 0.01
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setQtyAmount(amount)}
+                        className={`py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                          isActive
+                            ? 'bg-olive-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {p === 100 ? 'Tutto' : `${p}%`}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Fine +/- controls */}
+              <div className="flex items-center justify-center gap-4 mb-5">
+                <button
+                  onClick={() => setQtyAmount(Math.max(0, Math.round((qtyAmount - 1) * 100) / 100))}
+                  disabled={qtyAmount <= 0}
+                  className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold text-lg transition-colors disabled:opacity-30"
+                >
+                  -
+                </button>
+                <div className="text-center min-w-[80px]">
+                  <p className="text-2xl font-bold text-slate-900">{Math.round(qtyAmount * 100) / 100}</p>
+                  <p className="text-xs text-slate-400">
+                    {qtyModalItem.unit} {qtyMode === 'use' ? 'da usare' : 'da aggiungere'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const max = qtyMode === 'use' ? qtyModalItem.quantity : 999
+                    setQtyAmount(Math.min(max, Math.round((qtyAmount + 1) * 100) / 100))
+                  }}
+                  disabled={qtyMode === 'use' && qtyAmount >= qtyModalItem.quantity}
+                  className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold text-lg transition-colors disabled:opacity-30"
+                >
+                  +
+                </button>
+              </div>
+
+              {/* Confirm */}
+              <button
+                onClick={handleApplyQty}
+                disabled={qtyAmount <= 0 || qtyLoading}
+                className={`w-full rounded-xl py-3 font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${
+                  qtyMode === 'use'
+                    ? 'bg-olive-600 hover:bg-olive-700 text-white'
+                    : 'bg-sky-600 hover:bg-sky-700 text-white'
+                }`}
+              >
+                {qtyLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : qtyMode === 'add' ? (
+                  <>
+                    <Plus className="w-4 h-4" /> Aggiungi {Math.round(qtyAmount * 100) / 100} {qtyModalItem.unit}
+                  </>
+                ) : newTotal <= 0 ? (
+                  <>
+                    <Trash2 className="w-4 h-4" /> Usa tutto e rimuovi
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" /> Usa {Math.round(qtyAmount * 100) / 100} {qtyModalItem.unit}
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setQtyModalItem(null)}
+                disabled={qtyLoading}
+                className="w-full mt-2 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Expiry edit modal (for kitchen view taps) */}
       {editingExpiryId && viewMode === 'kitchen' && (() => {

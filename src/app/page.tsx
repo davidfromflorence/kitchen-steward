@@ -524,9 +524,9 @@ export default function LandingPage() {
               <span className="font-bold text-slate-900">Kitchen Steward</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-slate-500">
-              <a href="#" className="hover:text-slate-900 transition-colors">Privacy</a>
-              <a href="#" className="hover:text-slate-900 transition-colors">Termini</a>
-              <a href="#" className="hover:text-slate-900 transition-colors">Contatti</a>
+              <a href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</a>
+              <a href="/terms" className="hover:text-slate-900 transition-colors">Termini</a>
+              <a href="mailto:david@wearespoat.com" className="hover:text-slate-900 transition-colors">Contatti</a>
             </div>
             <p className="text-xs text-slate-400">&copy; 2026 Kitchen Steward. Tutti i diritti riservati.</p>
           </div>
