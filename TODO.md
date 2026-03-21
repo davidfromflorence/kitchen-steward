@@ -11,7 +11,7 @@
 ### Legal / GDPR
 - [x] Privacy policy page (`/privacy`)
 - [x] Terms of service page (`/terms`)
-- [ ] Cookie/consent banner
+- [x] Cookie/consent banner
 
 ### Security
 - [x] Verify `.env.local` is gitignored
@@ -31,10 +31,10 @@
 - [x] Add `robots.txt`
 - [x] Add `sitemap.xml`
 - [x] Add structured data (JSON-LD)
-- [ ] Add canonical URLs
+- [x] Add canonical URLs
 
 ### Analytics & Monitoring
-- [ ] Integrate Vercel Analytics or PostHog
+- [x] Integrate Vercel Analytics
 - [ ] Web Vitals tracking
 - [ ] Error tracking service (Sentry or similar)
 
@@ -59,7 +59,7 @@
 ### Easier Food Removal
 - [x] "Ricordami" option on login
 - [x] Batch select + delete
-- [ ] Quick swipe-to-delete on item cards (mobile)
+- [x] Swipe-to-delete on item cards (mobile)
 
 ---
 
@@ -130,7 +130,7 @@
 ## Features — Gamification
 
 ### Deeper Integration
-- [ ] Move gamification state from localStorage to Supabase (persist across devices)
+- [x] Move gamification state from localStorage to Supabase (persist across devices)
 - [ ] Per-user action tracking in DB (for real leaderboard)
 - [ ] Gamify daily challenges more (streaks, bonus XP, visual rewards)
 - [ ] Contextual XP: earn XP when using items before expiry, lose streak when food expires

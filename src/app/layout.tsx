@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Public_Sans } from 'next/font/google'
 import { cn } from '@/lib/utils'
+import { Analytics } from '@vercel/analytics/next'
+import CookieBanner from '@/components/cookie-banner'
 
 const publicSans = Public_Sans({
   subsets: ['latin'],
@@ -43,6 +45,10 @@ export const metadata: Metadata = {
     title: 'Kitchen Steward — Zero Waste, Max Taste',
     description: 'AI-powered fridge management. Reduce food waste, save money, eat better.',
   },
+  metadataBase: new URL('https://kitchen-steward.vercel.app'),
+  alternates: {
+    canonical: '/',
+  },
   robots: {
     index: true,
     follow: true,
@@ -68,6 +74,8 @@ export default function RootLayout({
       </head>
       <body>
         {children}
+        <Analytics />
+        <CookieBanner />
         <script
           dangerouslySetInnerHTML={{
             __html: `

@@ -28,6 +28,7 @@ import { createHabitFromDescription, saveHabit, getHabits, deleteHabit } from '@
 import type { HabitItem, Habit } from '@/app/actions/habits'
 import AddItemModal from './add-item-modal'
 import { loadFoodProfile } from '@/lib/food-profile'
+import SwipeableCard from '@/components/swipeable-card'
 
 interface InventoryItem {
   id: string
@@ -323,6 +324,15 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
     try { await action(formData) } finally { setPendingId(null) }
   }
 
+  async function handleDeleteById(id: string) {
+    setPendingId(id)
+    try {
+      const fd = new FormData()
+      fd.set('id', id)
+      await deleteItem(fd)
+    } finally { setPendingId(null) }
+  }
+
   // Drag and drop handlers
   function handleDragStart(e: React.DragEvent, itemId: string) {
     setDragItemId(itemId)
@@ -452,8 +462,12 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
                 const badge = item.expiry_date ? expiryBadge(item.expiry_date) : null
 
                 return (
-                  <div
+                  <SwipeableCard
                     key={item.id}
+                    onDelete={() => handleDeleteById(item.id)}
+                    disabled={selectMode || isPending}
+                  >
+                  <div
                     onClick={() => !selectMode && !isPending && openQtyModal(item, 'use')}
                     className={`bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all ${
                       isPending ? 'opacity-50 pointer-events-none' : ''
@@ -537,6 +551,7 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
                       </div>
                     </div>
                   </div>
+                  </SwipeableCard>
                 )
               })}
             </div>

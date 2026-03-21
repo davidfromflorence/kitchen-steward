@@ -1,6 +1,7 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
+import { loadGamification, saveGamification } from '@/app/actions/gamification'
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -158,8 +159,23 @@ const GamificationContext = createContext<GamificationContextValue | null>(null)
 export function GamificationProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GamificationState>(defaultState)
   const [mounted, setMounted] = useState(false)
+  const dbSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Initialize on mount
+  // Debounced save to Supabase
+  const syncToDB = useCallback((s: GamificationState) => {
+    if (dbSaveTimer.current) clearTimeout(dbSaveTimer.current)
+    dbSaveTimer.current = setTimeout(() => {
+      saveGamification({
+        totalXP: s.totalXP,
+        streak: s.streak,
+        lastLoginDate: s.lastLoginDate,
+        completedActions: s.completedActions,
+        savedItems: s.savedItems,
+      }).catch(() => {}) // silent fail — localStorage is the fallback
+    }, 3000)
+  }, [])
+
+  // Initialize on mount: load from localStorage, then merge with DB
   useEffect(() => {
     let current = loadState()
     current = migrateOldData(current)
@@ -167,6 +183,27 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     saveState(current)
     setState(current)
     setMounted(true)
+
+    // Async: load from DB and merge (DB wins if it has more XP)
+    loadGamification().then((dbState) => {
+      if (!dbState) {
+        // No DB record yet — save current local state to DB
+        syncToDB(current)
+        return
+      }
+      // Merge: take the higher XP, union of completed actions and saved items
+      const merged: GamificationState = {
+        totalXP: Math.max(current.totalXP, dbState.totalXP),
+        streak: Math.max(current.streak, dbState.streak),
+        lastLoginDate: current.lastLoginDate || dbState.lastLoginDate,
+        completedActions: [...new Set([...current.completedActions, ...dbState.completedActions])],
+        savedItems: [...new Set([...current.savedItems, ...dbState.savedItems])],
+      }
+      saveState(merged)
+      setState(merged)
+      syncToDB(merged)
+    }).catch(() => {}) // DB unavailable — localStorage only
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const awardXP = useCallback(
@@ -186,13 +223,14 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
             : prev.completedActions,
         }
         saveState(next)
+        syncToDB(next)
         awarded = true
         return next
       })
 
       return awarded
     },
-    [],
+    [syncToDB],
   )
 
   const hasCompleted = useCallback(
@@ -212,10 +250,11 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
           next.savedItems = [...prev.savedItems, key]
         }
         saveState(next)
+        syncToDB(next)
         return next
       })
     },
-    [],
+    [syncToDB],
   )
 
   const isSaved = useCallback(

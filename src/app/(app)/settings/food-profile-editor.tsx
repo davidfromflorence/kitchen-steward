@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { User, Check } from 'lucide-react'
+import { saveFoodProfileToDB } from '@/app/actions/gamification'
 import {
   loadFoodProfile,
   saveFoodProfile,
@@ -33,6 +34,7 @@ export default function FoodProfileEditor() {
       if (!prev) return prev
       const next = { ...prev, ...patch }
       saveFoodProfile(next)
+      saveFoodProfileToDB(next).catch(() => {})
       setSaved(true)
       setTimeout(() => setSaved(false), 1500)
       return next
