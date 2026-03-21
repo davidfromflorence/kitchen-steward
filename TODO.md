@@ -122,7 +122,7 @@
 
 ### Family / Household
 - [ ] Improve household sharing flow (invite link, QR code)
-- [ ] Per-member activity feed (who added/used what)
+- [x] Per-member activity feed on dashboard (who added/used what, with timestamps)
 - [ ] Family notifications when someone adds or finishes an item
 
 ---
@@ -131,9 +131,9 @@
 
 ### Deeper Integration
 - [x] Move gamification state from localStorage to Supabase (persist across devices)
-- [ ] Per-user action tracking in DB (for real leaderboard)
+- [x] Per-user action tracking in DB (activity_log table with RLS)
+- [x] Contextual XP: +15 XP when using items before expiry, +5 normal use, +10 meal logged
 - [ ] Gamify daily challenges more (streaks, bonus XP, visual rewards)
-- [ ] Contextual XP: earn XP when using items before expiry, lose streak when food expires
 - [ ] Weekly household challenge
 
 ---
@@ -141,9 +141,12 @@
 ## Features — Notifications
 
 ### Push Notifications
-- [ ] Service worker setup for Web Push API
-- [ ] Request notification permission (good UX timing)
-- [ ] Push notification when food is about to expire (1-2 days before)
+- [x] Service worker updated with push + notification click handlers
+- [x] Push subscription toggle in settings (Bell on/off)
+- [x] Server actions: savePushSubscription, removePushSubscription
+- [x] Migration 007: push_subscription column on users table
+- [ ] VAPID keys setup (generate + add to env)
+- [ ] Cron: send push when food expires in 1-2 days
 - [ ] Push notification for daily challenge reminder
 - [ ] Push notification when household member adds items
 

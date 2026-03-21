@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react'
+import ActivityFeed from './activity-feed'
 
 function getGreeting(): string {
   const hour = new Date().getHours()
@@ -155,6 +156,9 @@ export default async function DashboardPage() {
 
       {/* Daily Challenges */}
       <DailyChallenge />
+
+      {/* Activity Feed */}
+      <ActivityFeed />
     </div>
   )
 }

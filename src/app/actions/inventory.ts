@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { calculateExpiryDate, defaultZone, normalizeZone } from '@/lib/shelf-life'
+import { logActivity } from './activity'
 
 async function getAuthAndHousehold() {
   const supabase = await createClient()
@@ -55,6 +56,8 @@ export async function addItem(formData: FormData) {
   if (!inserted || inserted.length === 0) {
     return { error: `RLS blocked insert. household_id=${householdId}` }
   }
+
+  logActivity({ action: 'item_added', itemName: name, itemQuantity: quantity, itemUnit: unit }).catch(() => {})
 
   revalidateAll()
   return { success: true }
@@ -152,6 +155,13 @@ export async function useItem(formData: FormData) {
 export async function updateQuantity(id: string, newQuantity: number) {
   const { supabase } = await getAuthAndHousehold()
 
+  // Get item info before updating for activity logging
+  const { data: item } = await supabase
+    .from('inventory_items')
+    .select('name, quantity, unit, expiry_date')
+    .eq('id', id)
+    .single()
+
   if (newQuantity <= 0) {
     await supabase.from('inventory_items').delete().eq('id', id)
   } else {
@@ -159,6 +169,35 @@ export async function updateQuantity(id: string, newQuantity: number) {
       .from('inventory_items')
       .update({ quantity: Math.round(newQuantity * 100) / 100 })
       .eq('id', id)
+  }
+
+  // Log activity
+  if (item) {
+    const usedQty = item.quantity - newQuantity
+    if (usedQty > 0) {
+      const daysToExpiry = item.expiry_date
+        ? Math.ceil((new Date(item.expiry_date).getTime() - Date.now()) / 86_400_000)
+        : 999
+      const beforeExpiry = daysToExpiry >= 0 && daysToExpiry <= 3
+      const xp = beforeExpiry ? 15 : 5
+
+      logActivity({
+        action: beforeExpiry ? 'item_used_before_expiry' : 'item_used',
+        itemName: item.name,
+        itemQuantity: usedQty,
+        itemUnit: item.unit,
+        xpEarned: xp,
+        metadata: newQuantity <= 0 ? { fully_consumed: true } : {},
+      }).catch(() => {})
+    } else if (newQuantity > item.quantity) {
+      // Quantity increased
+      logActivity({
+        action: 'item_added',
+        itemName: item.name,
+        itemQuantity: newQuantity - item.quantity,
+        itemUnit: item.unit,
+      }).catch(() => {})
+    }
   }
 
   revalidateAll()
@@ -331,6 +370,16 @@ Se nessun prodotto corrisponde, rispondi []. Solo JSON, no markdown.`
         await supabase.from('inventory_items').update({ quantity: newQty }).eq('id', match.id)
         used.push({ name: match.name, subtracted: item.subtract, unit: match.unit, removed: false })
       }
+    }
+
+    // Log meal activity
+    if (used.length > 0) {
+      logActivity({
+        action: 'meal_logged',
+        itemName: mealDescription,
+        metadata: { items_used: used },
+        xpEarned: 10,
+      }).catch(() => {})
     }
 
     revalidateAll()

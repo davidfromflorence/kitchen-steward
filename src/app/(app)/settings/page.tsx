@@ -5,6 +5,7 @@ import { logout } from '@/app/login/actions'
 import { WhatsAppLinkForm } from './whatsapp-link-form'
 import ThemePicker from './theme-picker'
 import FoodProfileEditor from './food-profile-editor'
+import PushToggle from './push-toggle'
 
 function getInitials(name: string | null, email: string | undefined): string {
   if (name) {
@@ -147,6 +148,9 @@ export default async function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Notifications */}
+      <PushToggle />
 
       {/* Theme */}
       <ThemePicker />
