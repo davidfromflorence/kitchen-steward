@@ -306,8 +306,9 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
         const habits = await getHabits()
         setHabitList(habits)
       }
-    } catch {
-      setHabitError('Errore nel salvataggio.')
+    } catch (e) {
+      console.error('Save habit error:', e)
+      setHabitError(e instanceof Error ? e.message : 'Errore nel salvataggio.')
     } finally {
       setHabitLoading(false)
     }

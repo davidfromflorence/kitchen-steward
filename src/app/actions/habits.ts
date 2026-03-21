@@ -120,8 +120,11 @@ export async function saveHabit(
   })
 
   if (error) {
-    console.error('Save habit error:', error)
-    return { error: 'Errore nel salvataggio.' }
+    console.error('Save habit error:', error.message, error.code, error.details)
+    if (error.code === '42P01') {
+      return { error: 'Tabella abitudini non trovata. Contatta il supporto.' }
+    }
+    return { error: `Errore: ${error.message}` }
   }
 
   revalidatePath('/fridge')

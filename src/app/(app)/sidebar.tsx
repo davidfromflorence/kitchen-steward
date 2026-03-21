@@ -9,7 +9,6 @@ import {
   BarChart3,
   ChefHat,
   BookOpen,
-  Settings,
   Moon,
   Sun,
 } from 'lucide-react'
@@ -107,21 +106,6 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
             )
           })}
 
-          {/* Divider */}
-          <div className="my-3 border-t border-slate-200" />
-
-          {/* Settings */}
-          <Link
-            href="/settings"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-              isActive(pathname, '/settings')
-                ? 'bg-olive-100 text-olive-700'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <Settings className="h-5 w-5 flex-shrink-0" />
-            Impostazioni
-          </Link>
         </nav>
 
         {/* Theme toggle */}
