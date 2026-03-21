@@ -141,7 +141,7 @@ function detectFastIntent(msg: string): FastIntent {
   if (['aiuto', 'help', '?'].includes(l)) return { type: 'help' }
 
   // Ate out — no subtraction needed
-  if (/mangiato?\s+fuori|ho\s+(pranzato|cenato)\s+fuori|sono\s+(andat[oa]|uscit[oa]).*mangiare|ristorante|pizzeria|mangiato?\s+(al|in)\s+/i.test(l)) {
+  if (/mangiato?\s+fuori|ho\s+(pranzato|cenato)\s+fuori|(siamo|sono)\s+\w*\s*(andat[oi]|uscit[oi]).*mangiare|ristorante|pizzeria|mangiato?\s+(al|in)\s+/i.test(l)) {
     return { type: 'ate_out' }
   }
   if (['fuori', 'mangiato fuori', 'ho mangiato fuori', 'pranzato fuori', 'cenato fuori'].includes(l)) {
