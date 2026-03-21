@@ -2,13 +2,21 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import AnalyticsClient from './analytics-client'
 
+const COST_PER_PIECE: Record<string, number> = {
+  Protein: 1.50, Vegetable: 0.80, Fruit: 0.50,
+  Dairy: 1.20, Carbohydrate: 0.60, Condiment: 2.00, General: 1.00,
+}
+const CO2_PER_KG = 2.5
+
+const CATEGORY_LABELS: Record<string, string> = {
+  Vegetable: 'Verdure', Fruit: 'Frutta', Dairy: 'Latticini',
+  Protein: 'Proteine', Carbohydrate: 'Carboidrati', Condiment: 'Condimenti',
+  General: 'Altro', Frozen: 'Surgelati',
+}
+
 export default async function AnalyticsPage() {
   const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) return redirect('/login')
 
   const { data: profile } = await supabase
@@ -16,158 +24,158 @@ export default async function AnalyticsPage() {
     .select('household_id, full_name')
     .eq('id', user.id)
     .single()
-
   if (!profile?.household_id) return redirect('/setup')
 
-  // Fetch inventory items
-  const { data: inventoryData } = await supabase
-    .from('inventory_items')
-    .select('id, name, quantity, unit, category, expiry_date, created_at')
-    .eq('household_id', profile.household_id)
-    .order('created_at', { ascending: false })
+  const householdId = profile.household_id
 
-  const inventory = inventoryData ?? []
+  // Fetch all activity + inventory + members in parallel
+  const [activityRes, inventoryRes, membersRes, gamRes] = await Promise.all([
+    supabase.from('activity_log')
+      .select('action, item_name, item_quantity, item_unit, xp_earned, user_id, created_at, metadata')
+      .eq('household_id', householdId)
+      .order('created_at', { ascending: false }),
+    supabase.from('inventory_items')
+      .select('name, quantity, unit, category, expiry_date')
+      .eq('household_id', householdId),
+    supabase.from('users')
+      .select('id, full_name')
+      .eq('household_id', householdId),
+    supabase.from('user_gamification')
+      .select('user_id, total_xp, streak')
+      .in('user_id', [user.id]), // will extend to all members below
+  ])
 
-  // Fetch household members
-  const { data: membersData } = await supabase
-    .from('users')
-    .select('id, full_name, created_at')
-    .eq('household_id', profile.household_id)
-    .order('created_at', { ascending: true })
+  const activities = activityRes.data || []
+  const inventory = inventoryRes.data || []
+  const members = membersRes.data || []
 
-  const members = membersData ?? []
+  // Get gamification for all members
+  const memberIds = members.map(m => m.id)
+  const { data: allGam } = await supabase
+    .from('user_gamification')
+    .select('user_id, total_xp, streak')
+    .in('user_id', memberIds)
+  const gamMap = new Map((allGam || []).map(g => [g.user_id, g]))
 
-  // --- Compute stats from inventory data ---
-  const now = new Date()
-  const totalItems = inventory.length
+  // Current user streak
+  const myGam = gamMap.get(user.id)
+  const streak = myGam?.streak || 0
 
-  const expiredItems = inventory.filter((item) => {
-    if (!item.expiry_date) return false
-    return new Date(item.expiry_date) < now
-  })
-  const savedItems = totalItems - expiredItems.length
+  // ── Stats from activity_log ──
+  const now = Date.now()
+  const oneWeekAgo = now - 7 * 86_400_000
+  const oneMonthAgo = now - 30 * 86_400_000
 
-  // Zero-waste streak: count consecutive recent days with no expired items
-  // We look backwards from today to find how many days had no expirations
-  let streak = 0
-  for (let d = 0; d < 90; d++) {
-    const checkDate = new Date(now)
-    checkDate.setDate(checkDate.getDate() - d)
-    const dateStr = checkDate.toISOString().split('T')[0]
-    const expiredOnDay = inventory.some(
-      (item) => item.expiry_date && item.expiry_date.split('T')[0] === dateStr && new Date(item.expiry_date) < now
-    )
-    if (expiredOnDay) break
-    streak++
-  }
+  const usedActions = activities.filter(a => a.action === 'item_used' || a.action === 'item_used_before_expiry')
+  const savedBeforeExpiry = activities.filter(a => a.action === 'item_used_before_expiry')
+  const mealsLogged = activities.filter(a => a.action === 'meal_logged')
+  const itemsAdded = activities.filter(a => a.action === 'item_added')
 
-  // Carbon saved: ~0.5 kg CO2 per item not wasted
-  const carbonSaved = Math.round(savedItems * 0.5)
-
-  // Total savings: ~$2.50 per item saved
-  const totalSavings = Math.round(savedItems * 2.5 * 100) / 100
-
-  // Family ranking: assign pseudo-scores based on member order (mock since we lack per-user tracking)
-  const memberScores = members.map((m, i) => {
-    // Give the current user a score based on their saved items, others get mock scores
-    const isCurrentUser = m.id === user.id
-    const baseScore = isCurrentUser ? savedItems * 10 : Math.max(50, 200 - i * 45)
-    return {
-      id: m.id,
-      name: m.full_name || 'Unknown',
-      score: baseScore,
-      isCurrentUser,
+  // Money saved from used items
+  let totalEuros = 0
+  let totalKg = 0
+  for (const act of usedActions) {
+    const qty = act.item_quantity || 1
+    const unit = act.item_unit || 'pz'
+    const cat = inventory.find(i => i.name === act.item_name)?.category || 'General'
+    if (unit === 'pz') {
+      totalEuros += (COST_PER_PIECE[cat] || 1.0) * qty
+      totalKg += qty * 0.15
+    } else if (unit === 'g' || unit === 'kg') {
+      const g = unit === 'kg' ? qty * 1000 : qty
+      totalEuros += g * 0.005
+      totalKg += g / 1000
+    } else {
+      totalEuros += qty * 0.003
+      totalKg += qty / 1000
     }
-  })
-  memberScores.sort((a, b) => b.score - a.score)
-  const currentUserRank = memberScores.findIndex((m) => m.isCurrentUser) + 1
+  }
+  const totalCO2 = totalKg * CO2_PER_KG
 
-  // Monthly data (mock based on item count, simulating last 6 months)
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const monthlyData = []
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const monthLabel = monthNames[d.getMonth()]
-    // Items created in that month
-    const monthItems = inventory.filter((item) => {
-      if (!item.created_at) return false
-      const created = new Date(item.created_at)
-      return created.getMonth() === d.getMonth() && created.getFullYear() === d.getFullYear()
+  // This week
+  const thisWeekUsed = usedActions.filter(a => new Date(a.created_at).getTime() > oneWeekAgo)
+  const thisWeekMeals = mealsLogged.filter(a => new Date(a.created_at).getTime() > oneWeekAgo)
+  const thisWeekSaved = savedBeforeExpiry.filter(a => new Date(a.created_at).getTime() > oneWeekAgo)
+
+  // ── Weekly chart data (last 8 weeks) ──
+  const weeklyData: Array<{ label: string; used: number; meals: number; saved: number }> = []
+  for (let i = 7; i >= 0; i--) {
+    const weekStart = now - (i + 1) * 7 * 86_400_000
+    const weekEnd = now - i * 7 * 86_400_000
+    const weekActs = activities.filter(a => {
+      const t = new Date(a.created_at).getTime()
+      return t >= weekStart && t < weekEnd
     })
-    // If we have real data use it, otherwise generate mock data that trends upward
-    const waste = monthItems.length > 0
-      ? Math.round(monthItems.length * 0.8)
-      : Math.round(8 + (5 - i) * 3 + Math.random() * 5)
-    const savings = monthItems.length > 0
-      ? Math.round(monthItems.length * 2.5)
-      : Math.round(120 + (5 - i) * 35 + Math.random() * 20)
-    monthlyData.push({ month: monthLabel, wasteSaved: waste, savings })
+    const d = new Date(weekEnd)
+    const label = `${d.getDate()}/${d.getMonth() + 1}`
+    weeklyData.push({
+      label,
+      used: weekActs.filter(a => a.action === 'item_used' || a.action === 'item_used_before_expiry').length,
+      meals: weekActs.filter(a => a.action === 'meal_logged').length,
+      saved: weekActs.filter(a => a.action === 'item_used_before_expiry').length,
+    })
   }
 
-  // Category breakdown from inventory
+  // ── Category breakdown from inventory ──
   const categoryCounts: Record<string, number> = {}
   for (const item of inventory) {
-    const cat = item.category || 'Other'
-    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+    const cat = item.category || 'General'
+    categoryCounts[cat] = (categoryCounts[cat] || 0) + item.quantity
   }
-  const sortedCategories = Object.entries(categoryCounts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 4)
-  const categoryTotal = sortedCategories.reduce((sum, [, count]) => sum + count, 0) || 1
-  const categoryBreakdown = sortedCategories.length > 0
-    ? sortedCategories.map(([name, count]) => ({
-        name: formatCategoryName(name),
-        percentage: Math.round((count / categoryTotal) * 100),
-      }))
-    : [
-        { name: 'Leafy Greens', percentage: 45 },
-        { name: 'Bread & Grains', percentage: 25 },
-        { name: 'Dairy', percentage: 20 },
-        { name: 'Fruits', percentage: 10 },
-      ]
+  const sortedCats = Object.entries(categoryCounts).sort(([, a], [, b]) => b - a).slice(0, 5)
+  const catTotal = sortedCats.reduce((s, [, c]) => s + c, 0) || 1
+  const categoryBreakdown = sortedCats.map(([name, count]) => ({
+    name: CATEGORY_LABELS[name] || name,
+    percentage: Math.round((count / catTotal) * 100),
+  }))
 
-  // Badges (mock milestone system)
-  const badges = [
-    { label: `${Math.min(streak, 10)}-Day Streak`, icon: 'flame', unlocked: streak >= 10 },
-    { label: '$100 Saved', icon: 'dollar', unlocked: totalSavings >= 100 },
-    { label: 'Master Composter', icon: 'leaf', unlocked: savedItems >= 50 },
-    { label: 'Eco Gold (50%)', icon: 'trophy', unlocked: savedItems > totalItems * 0.5 },
-    { label: 'First Item', icon: 'star', unlocked: totalItems > 0 },
-    { label: '25 Items Tracked', icon: 'package', unlocked: totalItems >= 25 },
-  ]
+  // ── Leaderboard from real XP ──
+  const leaderboard = members.map(m => {
+    const g = gamMap.get(m.id)
+    const memberActs = activities.filter(a => a.user_id === m.id)
+    return {
+      id: m.id,
+      name: m.full_name?.split(' ')[0] || 'Utente',
+      xp: g?.total_xp || 0,
+      streak: g?.streak || 0,
+      itemsUsed: memberActs.filter(a => a.action === 'item_used' || a.action === 'item_used_before_expiry').length,
+      saved: memberActs.filter(a => a.action === 'item_used_before_expiry').length,
+      isCurrentUser: m.id === user.id,
+    }
+  }).sort((a, b) => b.xp - a.xp)
 
-  const stats = {
-    streak,
-    carbonSaved,
-    totalSavings,
-    currentUserRank,
-    totalMembers: members.length,
-    savedItems,
-    totalItems,
-  }
+  // ── Expiry status ──
+  const today = new Date().toISOString().split('T')[0]
+  const expired = inventory.filter(i => i.expiry_date && i.expiry_date < today)
+  const expiringSoon = inventory.filter(i => {
+    if (!i.expiry_date) return false
+    const days = Math.ceil((new Date(i.expiry_date).getTime() - Date.now()) / 86_400_000)
+    return days >= 0 && days <= 3
+  })
 
   return (
     <div className="min-h-screen bg-stone-50 pb-28">
       <AnalyticsClient
-        stats={stats}
-        members={memberScores}
-        monthlyData={monthlyData}
+        stats={{
+          totalItems: inventory.length,
+          totalEuros: Math.round(totalEuros),
+          totalKg: Math.round(totalKg * 10) / 10,
+          totalCO2: Math.round(totalCO2 * 10) / 10,
+          streak,
+          itemsUsed: usedActions.length,
+          mealsLogged: mealsLogged.length,
+          savedBeforeExpiry: savedBeforeExpiry.length,
+          itemsAdded: itemsAdded.length,
+          expired: expired.length,
+          expiringSoon: expiringSoon.length,
+          thisWeekUsed: thisWeekUsed.length,
+          thisWeekMeals: thisWeekMeals.length,
+          thisWeekSaved: thisWeekSaved.length,
+        }}
+        weeklyData={weeklyData}
         categoryBreakdown={categoryBreakdown}
-        badges={badges}
+        leaderboard={leaderboard}
       />
     </div>
   )
-}
-
-function formatCategoryName(raw: string): string {
-  const lower = raw.toLowerCase()
-  if (lower === 'vegetable') return 'Leafy Greens'
-  if (lower === 'fruit') return 'Fruits'
-  if (lower === 'dairy') return 'Dairy'
-  if (lower === 'protein') return 'Proteins'
-  if (lower === 'carbohydrate') return 'Bread & Grains'
-  if (lower === 'beverage' || lower === 'beverages') return 'Beverages'
-  if (lower === 'frozen') return 'Frozen'
-  if (lower === 'condiment') return 'Condiments'
-  return raw.charAt(0).toUpperCase() + raw.slice(1)
 }
