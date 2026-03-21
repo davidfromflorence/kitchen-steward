@@ -66,17 +66,15 @@ export default function QuickActions() {
 
       {/* ── Desktop floating bar ── */}
       <div className="hidden md:flex fixed bottom-6 left-64 right-0 z-40 justify-center pointer-events-none">
-        <div className="pointer-events-auto flex items-center bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-lg px-1.5 py-1.5">
+        <div className="pointer-events-auto flex items-center bg-slate-900 rounded-2xl shadow-xl px-1.5 py-1.5">
           {actions.map((a, i) => (
             <div key={a.key} className="flex items-center">
-              {i > 0 && <div className="w-px h-5 bg-slate-200 mx-0.5" />}
+              {i > 0 && <div className="w-px h-5 bg-slate-700 mx-0.5" />}
               <button
                 onClick={() => handle(a.key)}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors active:scale-95"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors active:scale-95"
               >
-                <div className={`w-7 h-7 rounded-lg ${a.color} flex items-center justify-center`}>
-                  <a.icon className="w-3.5 h-3.5" />
-                </div>
+                <a.icon className="w-4 h-4" />
                 {a.label}
               </button>
             </div>
