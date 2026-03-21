@@ -34,31 +34,122 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.dark body,
-body:is(.dark *) {
-  background-color: var(--background);
-  color: var(--foreground);
+.dark body {
+  background-color: #121510;
+  color: #e8ebe3;
 }
 
-/* Dark mode utility overrides for common surfaces */
+html.dark {
+  background-color: #121510;
+  color-scheme: dark;
+}
+
+/* ── Dark mode overrides ─────────────────────────────── */
+
+/* Backgrounds */
 .dark .bg-white { background-color: #1a1e16; }
 .dark .bg-stone-50,
 .dark .bg-cream { background-color: #121510; }
-.dark .bg-slate-50 { background-color: #1e2219; }
+.dark .bg-slate-50,
+.dark .bg-slate-50\/50 { background-color: #1e2219; }
 .dark .bg-slate-100 { background-color: #232820; }
+.dark .bg-slate-200 { background-color: #2a3024; }
+.dark .bg-white\/90 { background-color: rgba(26, 30, 22, 0.95); }
+.dark .bg-white\/80 { background-color: rgba(26, 30, 22, 0.8); }
+.dark .bg-white\/60 { background-color: rgba(26, 30, 22, 0.6); }
+.dark .bg-black\/40 { background-color: rgb(0 0 0 / 0.7); }
+
+/* Tinted backgrounds */
+.dark .bg-olive-50 { background-color: #1e2518; }
+.dark .bg-olive-100 { background-color: #252e1c; }
+.dark .bg-red-50 { background-color: #251a18; }
+.dark .bg-amber-50 { background-color: #25221a; }
+.dark .bg-emerald-50 { background-color: #1a2518; }
+.dark .bg-sky-50 { background-color: #182025; }
+.dark .bg-violet-50 { background-color: #1e1825; }
+.dark .bg-orange-50 { background-color: #251e18; }
+.dark .bg-cyan-50\/30 { background-color: rgba(24, 32, 37, 0.3); }
+.dark .bg-sky-50\/30 { background-color: rgba(24, 32, 37, 0.3); }
+.dark .bg-amber-50\/30 { background-color: rgba(37, 34, 26, 0.3); }
+
+/* Borders */
 .dark .border-slate-200 { border-color: #2a3024; }
 .dark .border-slate-100 { border-color: #232820; }
+.dark .border-slate-300 { border-color: #353d2e; }
+.dark .border-olive-200 { border-color: #2a3024; }
+.dark .border-olive-200\/50 { border-color: rgba(42, 48, 36, 0.5); }
+.dark .border-red-200 { border-color: #3a2520; }
+.dark .border-amber-200 { border-color: #3a3520; }
+.dark .border-sky-200 { border-color: #20303a; }
+.dark .border-cyan-200 { border-color: #20353a; }
+.dark .border-amber-300 { border-color: #4a4525; }
+.dark .border-red-300 { border-color: #4a2a25; }
+
+/* Text */
 .dark .text-slate-900 { color: #e8ebe3; }
 .dark .text-slate-800 { color: #d4d9cc; }
 .dark .text-slate-700 { color: #b8bfac; }
 .dark .text-slate-600 { color: #9ca393; }
 .dark .text-slate-500 { color: #8b9178; }
 .dark .text-slate-400 { color: #6b7260; }
-.dark .bg-black\/40 { background-color: rgb(0 0 0 / 0.6); }
+.dark .text-slate-300 { color: #555c4a; }
+
+/* Tinted text */
+.dark .text-olive-700 { color: #8ea85a; }
+.dark .text-olive-600 { color: #8ea85a; }
+.dark .text-red-600 { color: #f87171; }
+.dark .text-red-700 { color: #f87171; }
+.dark .text-amber-600 { color: #fbbf24; }
+.dark .text-amber-700 { color: #fbbf24; }
+.dark .text-amber-500 { color: #f59e0b; }
+.dark .text-sky-800 { color: #7dd3fc; }
+.dark .text-cyan-800 { color: #67e8f9; }
+.dark .text-amber-800 { color: #fcd34d; }
+.dark .text-emerald-500 { color: #34d399; }
+.dark .text-olive-800 { color: #adc07f; }
+.dark .text-emerald-800 { color: #6ee7b7; }
+
+/* Gradient backgrounds for fridge cards */
+.dark .from-emerald-300 { --tw-gradient-from: #065f46; }
+.dark .to-green-500 { --tw-gradient-to: #166534; }
+.dark .from-sky-200 { --tw-gradient-from: #0c4a6e; }
+.dark .to-blue-400 { --tw-gradient-to: #1e40af; }
+.dark .from-amber-300 { --tw-gradient-from: #78350f; }
+.dark .to-orange-500 { --tw-gradient-to: #9a3412; }
+.dark .from-yellow-200 { --tw-gradient-from: #713f12; }
+.dark .to-amber-400 { --tw-gradient-to: #92400e; }
+.dark .from-cyan-200 { --tw-gradient-from: #164e63; }
+.dark .to-sky-400 { --tw-gradient-to: #075985; }
+.dark .from-slate-200 { --tw-gradient-from: #2a3024; }
+.dark .to-slate-400 { --tw-gradient-to: #353d2e; }
+.dark .from-olive-50 { --tw-gradient-from: #1e2518; }
+.dark .to-emerald-50 { --tw-gradient-to: #1a2518; }
+
+/* Inputs & forms */
 .dark input,
-.dark textarea {
+.dark textarea,
+.dark select {
   color-scheme: dark;
 }
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6b7260;
+}
+.dark .bg-slate-50 input,
+.dark input.bg-slate-50 {
+  background-color: #1e2219;
+  color: #e8ebe3;
+}
+
+/* Dividers */
+.dark hr.border-slate-100,
+.dark .divide-slate-100 > :not(:last-child) {
+  border-color: #232820;
+}
+
+/* Shadows are invisible in dark — remove or darken */
+.dark .shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.dark .shadow-lg { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import Sidebar from './sidebar'
 import ClientProviders from './client-providers'
+import QuickActions from './quick-actions'
 
 export default async function AppLayout({
   children,
@@ -34,9 +35,10 @@ export default async function AppLayout({
     <ClientProviders>
       <div className="min-h-screen bg-cream">
         <Sidebar userName={userName} userRole="Household Head" />
-        <main className="md:ml-64 min-h-screen pt-14 md:pt-0 pb-20 md:pb-0">
+        <main className="md:ml-64 min-h-screen pt-14 md:pt-0 pb-20 md:pb-16">
           {children}
         </main>
+        <QuickActions />
       </div>
     </ClientProviders>
   )

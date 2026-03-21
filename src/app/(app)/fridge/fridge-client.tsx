@@ -22,7 +22,6 @@ import {
   CalendarDays,
   CheckSquare,
   Square,
-  MoreHorizontal,
 } from 'lucide-react'
 import { deleteItem, moveItem, logMeal, updateExpiry, updateQuantity } from '@/app/actions/inventory'
 import { createHabitFromDescription, saveHabit, getHabits, deleteHabit } from '@/app/actions/habits'
@@ -157,8 +156,6 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   const [qtyMode, setQtyMode] = useState<'use' | 'add'>('use')
   const [qtyAmount, setQtyAmount] = useState(0)
   const [qtyLoading, setQtyLoading] = useState(false)
-  // Overflow menu
-  const [showMoreMenu, setShowMoreMenu] = useState(false)
   // Batch select
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -170,6 +167,7 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
   useEffect(() => {
     if (searchParams.get('add') === 'true') setShowAddModal(true)
     if (searchParams.get('habit') === 'true') openHabitModal()
+    if (searchParams.get('meal') === 'true') setShowMealModal(true)
   }, [searchParams])
 
   const freshCount = items.filter((i) => !i.expiry_date || daysUntilExpiry(i.expiry_date) > 0).length
@@ -374,53 +372,15 @@ export default function FridgeClient({ items }: { items: InventoryItem[] }) {
             <span className="font-semibold text-olive-600">{freshCount}</span> ingredienti freschi
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:flex-none">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cerca..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 w-full sm:w-44"
-            />
-          </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-1.5 bg-olive-600 hover:bg-olive-700 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm shrink-0 active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            Aggiungi
-          </button>
-          <div className="relative">
-            <button
-              onClick={() => setShowMoreMenu(!showMoreMenu)}
-              className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors active:scale-95"
-            >
-              <MoreHorizontal className="w-5 h-5" />
-            </button>
-            {showMoreMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
-                <div className="absolute right-0 top-11 z-50 bg-white rounded-xl border border-slate-200 shadow-lg py-1 w-48">
-                  <button
-                    onClick={() => { setShowMealModal(true); setShowMoreMenu(false) }}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                  >
-                    <UtensilsCrossed className="w-4 h-4 text-orange-500" />
-                    Ho mangiato...
-                  </button>
-                  <button
-                    onClick={() => { openHabitModal(); setShowMoreMenu(false) }}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                  >
-                    <Repeat className="w-4 h-4 text-violet-500" />
-                    Abitudini
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+        <div className="relative flex-1 sm:flex-none sm:w-52">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Cerca..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-olive-500 w-full"
+          />
         </div>
       </div>
 
