@@ -3,7 +3,7 @@
 ## Critical (must fix before launch)
 
 ### PWA Core
-- [x] Create `manifest.json` (name, short_name, icons, theme_color, background_color, display: standalone)
+- [x] Create `manifest.json`
 - [x] Add app icons: 192x192, 512x512, adaptive icon, favicon
 - [x] Add viewport meta tag, theme-color, apple-touch-icon in root layout
 - [x] Basic service worker (cache app shell, offline fallback page)
@@ -14,14 +14,14 @@
 - [ ] Cookie/consent banner
 
 ### Security
-- [x] Verify `.env.local` is gitignored — if tracked, rotate all keys
-- [x] Rate limiting middleware on API routes (WhatsApp webhook, Gemini calls)
+- [x] Verify `.env.local` is gitignored
+- [x] Rate limiting middleware on API routes (WhatsApp webhook)
 - [x] Verify Vercel `CRON_SECRET` is set and validated
 
 ### Error Handling
 - [x] Add `not-found.tsx` (404 page)
 - [x] Add `global-error.tsx` (fatal error boundary)
-- [x] Add `loading.tsx` skeletons for heavy routes (fridge, recipes, analytics)
+- [x] Add `loading.tsx` skeletons for fridge, recipes, analytics
 
 ---
 
@@ -30,7 +30,7 @@
 ### SEO
 - [x] Add `robots.txt`
 - [x] Add `sitemap.xml`
-- [x] Add structured data (JSON-LD: Organization, WebApp)
+- [x] Add structured data (JSON-LD)
 - [ ] Add canonical URLs
 
 ### Analytics & Monitoring
@@ -50,32 +50,71 @@
 
 ### Quantity Management
 - [x] Quantity adjustment modal with % buttons (25/50/75/100) and +/- controls
-- [x] Option to increase quantity/pieces (not just decrease)
-- [x] Smarter quantity deduction: AI uses household size, Italian portion tables, and unit-aware subtraction
-- [x] "Ho mangiato" factors in household member count for better estimates
+- [x] Option to increase quantity/pieces (Use/Aggiungi tab toggle)
+- [x] Smarter quantity deduction: AI uses household size, Italian portion tables, unit-aware
+- [x] "Ho mangiato" factors in user food profile (portion size, weight, activity, notes)
+- [x] Food profile editor in settings (piccola/normale/grande/abbondante + weight + activity + notes)
+- [x] Tap item card to open qty modal (simplified card UX)
 
 ### Easier Food Removal
 - [x] "Ricordami" option on login
-- [x] Batch select + delete: tap to select multiple items, then "Elimina selezionati" (for food you ate entirely)
+- [x] Batch select + delete
 - [ ] Quick swipe-to-delete on item cards (mobile)
-- [ ] When marking partial use, show remaining quantity clearly (already done via qty modal)
 
 ---
 
 ## Features — UX & Navigation
 
 ### Dashboard
-- [ ] Improve dashboard layout and organization (clearer hierarchy, less clutter)
-- [x] Daily challenges: simplified UX (visual grid cards, clearer tap targets, Italian labels)
+- [x] Simplified dashboard (expiring items hero, status pills, removed mock data sections)
+- [x] Daily challenges: visual grid cards, Italian labels, simplified UX
 
 ### Mobile Navigation
 - [x] Add "Learn" to bottom nav on mobile
-- [x] Move "Settings" to top bar / profile icon on mobile (not in bottom nav)
-- [x] Mobile top bar with logo + Settings icon
+- [x] Move "Settings" to top bar / avatar icon
+- [x] Mobile top bar with logo + dark mode toggle + avatar
+- [x] Bottom nav with active pill state, frosted glass
+- [x] Global FAB: mobile centered + button, desktop floating dark bar
+
+### Sidebar (Desktop)
+- [x] Italian labels throughout
+- [x] Dark mode toggle
+- [x] Cleaner profile section (links to settings)
 
 ### Learn Section
-- [x] Allow saving interesting flashcards/quiz results for later review
-- [x] "Salvati" tab in Learn page to revisit saved cards
+- [x] Save button on flashcards, quiz results, food facts
+- [x] "Salvati" tab in Learn page
+
+---
+
+## Features — Dark Mode
+- [x] Theme provider (light/dark/system) with localStorage persistence
+- [x] Anti-flicker inline script
+- [x] Olive-branded dark palette
+- [x] CSS overrides for all surfaces, tinted backgrounds, borders, text, gradients
+- [x] Toggle in sidebar, mobile top bar, and settings
+- [x] Settings theme picker (toggle switch)
+
+---
+
+## Features — WhatsApp
+
+### Intelligence
+- [x] Conversation memory (last 3 exchanges, 15min TTL)
+- [x] Time/meal context awareness (colazione/pranzo/cena)
+- [x] Numbered replies work ("la 2" after recipe proposals)
+- [x] Smarter AI prompt with fridge categories, expiry warnings, shopping list context
+- [x] Exact name matching before fuzzy fallback for USE_ITEMS
+- [x] "Ho mangiato fuori" — no subtraction, friendly response
+
+### Meal Check-in
+- [x] Cron at 14:00 CET (after lunch) and 21:00 CET (after dinner)
+- [x] Asks "Cosa hai mangiato a pranzo/cena?" with expiring items hint
+- [x] User replies naturally → AI subtracts from fridge
+
+### Still TODO
+- [ ] Move from Twilio sandbox to production WhatsApp Business API
+- [ ] Add media support (photo of receipt to add items)
 
 ---
 
@@ -92,10 +131,10 @@
 
 ### Deeper Integration
 - [ ] Move gamification state from localStorage to Supabase (persist across devices)
-- [ ] Per-user action tracking in DB (for real leaderboard, not pseudo-scored)
+- [ ] Per-user action tracking in DB (for real leaderboard)
 - [ ] Gamify daily challenges more (streaks, bonus XP, visual rewards)
 - [ ] Contextual XP: earn XP when using items before expiry, lose streak when food expires
-- [ ] Weekly household challenge (e.g., "zero waste this week")
+- [ ] Weekly household challenge
 
 ---
 
@@ -103,15 +142,10 @@
 
 ### Push Notifications
 - [ ] Service worker setup for Web Push API
-- [ ] Request notification permission (with good UX timing, not on first visit)
+- [ ] Request notification permission (good UX timing)
 - [ ] Push notification when food is about to expire (1-2 days before)
 - [ ] Push notification for daily challenge reminder
 - [ ] Push notification when household member adds items
-
-### WhatsApp (existing, improvements)
-- [ ] Move from Twilio sandbox to production WhatsApp Business API
-- [ ] Add media support (photo of receipt to add items)
-- [ ] Conversation context (remember last few messages)
 
 ---
 
@@ -138,7 +172,6 @@
 ### Performance
 - [ ] Dynamic imports for heavy components (recipes AI, analytics charts)
 - [ ] Bundle analyzer setup
-- [ ] Image optimization if/when images are added
 
 ### Data Quality
 - [ ] Replace mock trend data in analytics with real tracked events
@@ -148,7 +181,6 @@
 ---
 
 ## Future / Nice to Have
-- [ ] Dark mode
 - [ ] i18n setup (if expanding beyond Italy)
 - [ ] Offline-first with IndexedDB sync
 - [ ] Barcode scanner to add items
