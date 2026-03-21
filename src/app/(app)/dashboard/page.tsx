@@ -5,13 +5,10 @@ import ActionButtons from './action-buttons'
 import XPBar from './xp-bar'
 import DailyChallenge from './daily-challenge'
 import {
-  Leaf,
-  DollarSign,
-  CloudOff,
   Refrigerator,
   AlertTriangle,
-  TrendingUp,
   ArrowRight,
+  Sparkles,
 } from 'lucide-react'
 
 function getGreeting(): string {
@@ -71,24 +68,6 @@ export default async function DashboardPage() {
 
   const firstName = profile.full_name?.split(' ')[0] || 'Chef'
 
-  // Category breakdown for fridge overview
-  const categoriesMap: Record<string, number> = {}
-  for (const item of inventory) {
-    const cat = item.category || 'General'
-    categoriesMap[cat] = (categoriesMap[cat] || 0) + 1
-  }
-  const categoriesSorted = Object.entries(categoriesMap).sort((a, b) => b[1] - a[1])
-
-  const categoryEmojis: Record<string, string> = {
-    Protein: '🥩',
-    Vegetable: '🥬',
-    Fruit: '🍎',
-    Dairy: '🧀',
-    Carbohydrate: '🍞',
-    Condiment: '🧂',
-    General: '📦',
-  }
-
   return (
     <div className="flex flex-col gap-5 animate-in py-6 max-w-3xl mx-auto px-4 sm:px-6 pb-24">
       {/* Header */}
@@ -98,11 +77,10 @@ export default async function DashboardPage() {
             {getGreeting()}, {firstName}!
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Il tuo frigo è{' '}
-            <span className="font-semibold text-olive-600">
-              {wasteFreePct}%
-            </span>{' '}
-            senza sprechi
+            <span className="font-semibold text-olive-600">{totalItems}</span> prodotti nel frigo
+            {expiringSoonItems.length > 0 && (
+              <> &middot; <span className="text-amber-600 font-semibold">{expiringSoonItems.length}</span> in scadenza</>
+            )}
           </p>
         </div>
         <ActionButtons />
@@ -111,35 +89,7 @@ export default async function DashboardPage() {
       {/* XP Bar */}
       <XPBar />
 
-      {/* Quick Stats Row — full width, 3 stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 text-center">
-          <div className="w-10 h-10 rounded-full bg-olive-50 flex items-center justify-center mx-auto mb-2">
-            <Refrigerator className="w-5 h-5 text-olive-600" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{totalItems}</p>
-          <p className="text-xs text-slate-400 font-medium">Prodotti</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 text-center">
-          <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-2">
-            <AlertTriangle className="w-5 h-5 text-amber-500" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{expiringSoonItems.length}</p>
-          <p className="text-xs text-slate-400 font-medium">In scadenza</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 text-center">
-          <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-2">
-            <TrendingUp className="w-5 h-5 text-emerald-500" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{wasteFreePct}%</p>
-          <p className="text-xs text-slate-400 font-medium">Zero spreco</p>
-        </div>
-      </div>
-
-      {/* Daily Challenges — full width, prominent */}
-      <DailyChallenge />
-
-      {/* Expiring Soon — full width */}
+      {/* Expiring Soon — the most actionable info */}
       {expiringSoonItems.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
@@ -151,7 +101,7 @@ export default async function DashboardPage() {
               href="/fridge"
               className="text-sm font-semibold text-olive-600 hover:underline flex items-center gap-1"
             >
-              Vedi tutto <ArrowRight className="w-3.5 h-3.5" />
+              Apri frigo <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
           <div className="divide-y divide-slate-100">
@@ -178,75 +128,30 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Fridge Overview — full width category breakdown */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-            <Refrigerator className="w-4 h-4 text-olive-600" />
-            Il tuo frigo
-          </h2>
-          <Link
-            href="/fridge"
-            className="text-sm font-semibold text-olive-600 hover:underline flex items-center gap-1"
-          >
-            Apri <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+      {/* Empty state when fridge is empty */}
+      {totalItems === 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+          <Refrigerator className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+          <p className="text-slate-500 text-sm">Il frigo è vuoto!</p>
+          <p className="text-slate-400 text-xs mt-1">Aggiungi i tuoi primi prodotti per iniziare.</p>
         </div>
-        {totalItems === 0 ? (
-          <div className="px-5 py-8 text-center">
-            <p className="text-slate-400 text-sm">Il frigo è vuoto. Aggiungi qualcosa!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-slate-100">
-            {categoriesSorted.map(([cat, count]) => (
-                <div key={cat} className="bg-white px-4 py-3 flex items-center gap-3">
-                  <span className="text-xl">{categoryEmojis[cat] || '📦'}</span>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">{count}</p>
-                    <p className="text-xs text-slate-400">{cat}</p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        )}
-      </div>
+      )}
 
-      {/* Eco Impact — full width, 3 columns */}
-      <div className="bg-gradient-to-br from-olive-50 to-emerald-50 rounded-2xl border border-olive-200/50 p-5">
-        <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <Leaf className="w-4 h-4 text-olive-600" />
-          Il tuo impatto
-        </h2>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center mx-auto mb-2">
-              <Leaf className="w-5 h-5 text-olive-600" />
-            </div>
-            <p className="text-lg font-bold text-slate-800">
-              {(totalItems * 0.3).toFixed(1)} kg
-            </p>
-            <p className="text-xs text-slate-500">Cibo salvato</p>
+      {/* Waste-free badge when everything is good */}
+      {totalItems > 0 && expiringSoonItems.length === 0 && (
+        <div className="bg-olive-50 rounded-2xl border border-olive-200/50 p-5 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-olive-100 flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5 text-olive-600" />
           </div>
-          <div className="text-center">
-            <div className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center mx-auto mb-2">
-              <CloudOff className="w-5 h-5 text-sky-500" />
-            </div>
-            <p className="text-lg font-bold text-slate-800">
-              {(totalItems * 0.8).toFixed(1)} kg
-            </p>
-            <p className="text-xs text-slate-500">CO₂ risparmiata</p>
-          </div>
-          <div className="text-center">
-            <div className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center mx-auto mb-2">
-              <DollarSign className="w-5 h-5 text-emerald-500" />
-            </div>
-            <p className="text-lg font-bold text-slate-800">
-              €{(totalItems * 2.5).toFixed(0)}
-            </p>
-            <p className="text-xs text-slate-500">Risparmiati</p>
+          <div>
+            <p className="text-sm font-bold text-olive-800">Tutto fresco!</p>
+            <p className="text-xs text-olive-600">Nessun prodotto in scadenza. {wasteFreePct}% senza sprechi.</p>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Daily Challenges */}
+      <DailyChallenge />
     </div>
   )
 }
