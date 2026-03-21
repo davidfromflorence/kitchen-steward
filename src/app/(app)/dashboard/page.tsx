@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import ActivityFeed from './activity-feed'
+import SavingsCard from './savings-card'
 
 function getGreeting(): string {
   const hour = new Date().getHours()
@@ -153,6 +154,9 @@ export default async function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Savings */}
+      <SavingsCard />
 
       {/* Daily Challenges */}
       <DailyChallenge />
