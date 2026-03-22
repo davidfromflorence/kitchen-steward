@@ -11,7 +11,11 @@ import {
   BookOpen,
   Moon,
   Sun,
+  Settings,
+  Menu,
+  X,
 } from 'lucide-react'
+import { useState } from 'react'
 import { useGamification } from './gamification-context'
 import { useTheme } from './theme-context'
 
@@ -49,6 +53,7 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
   const initials = userName.charAt(0).toUpperCase()
   const { level, progressPercent, streak } = useGamification()
   const { resolved, setTheme } = useTheme()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
     <>
@@ -67,14 +72,36 @@ export default function Sidebar({ userName = 'User', userRole = 'Household Head'
           >
             {resolved === 'dark' ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
           </button>
-          <Link
-            href="/settings"
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="w-8 h-8 rounded-full bg-olive-600 flex items-center justify-center text-white text-xs font-bold"
           >
-            {initials}
-          </Link>
+            {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile dropdown menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed top-[52px] right-4 z-40 bg-white rounded-2xl border border-slate-200 shadow-xl py-2 w-48 animate-in">
+          <Link
+            href="/settings"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Settings className="w-4 h-4 text-slate-400" />
+            Impostazioni
+          </Link>
+          <Link
+            href="/analytics"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <BarChart3 className="w-4 h-4 text-slate-400" />
+            Statistiche
+          </Link>
+        </div>
+      )}
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 z-30 w-64 flex-col bg-white border-r border-slate-200">
