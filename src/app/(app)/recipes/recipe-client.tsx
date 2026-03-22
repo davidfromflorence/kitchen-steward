@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useGamification } from '@/app/(app)/gamification-context'
+import { logMeal } from '@/app/actions/inventory'
 import {
   ChefHat,
   Clock,
@@ -14,11 +15,18 @@ import {
   ArrowLeft,
   RotateCcw,
   Flame,
+  ExternalLink,
+  CookingPot,
 } from 'lucide-react'
 
 interface Ingredient {
   name: string
   daysLeft: number
+}
+
+interface UsefulLink {
+  label: string
+  url: string
 }
 
 interface RecipeData {
@@ -31,6 +39,7 @@ interface RecipeData {
   difficulty: string
   eco_impact_kg: number
   zero_waste_reason: string
+  useful_links?: UsefulLink[]
 }
 
 const COOKING_TIMES = [
@@ -94,6 +103,8 @@ export default function RecipeClient({ ingredients }: { ingredients: Ingredient[
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeData | null>(null)
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
+  const [cooking, setCooking] = useState(false)
+  const [cookResult, setCookResult] = useState<{ used: Array<{ name: string; subtracted: number; unit: string; removed: boolean }> } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const toggleDiet = (diet: string) => {
@@ -139,6 +150,26 @@ export default function RecipeClient({ ingredients }: { ingredients: Ingredient[
   const selectRecipe = (recipe: RecipeData) => {
     setSelectedRecipe(recipe)
     setCheckedIngredients(new Set())
+    setCookResult(null)
+  }
+
+  const handleCooked = async () => {
+    if (!selectedRecipe) return
+    setCooking(true)
+    setCookResult(null)
+    try {
+      const result = await logMeal(selectedRecipe.title)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setCookResult({ used: result.used })
+        awardXP('recipe_cooked', 25)
+      }
+    } catch {
+      setError('Errore nell\'aggiornamento del frigo.')
+    } finally {
+      setCooking(false)
+    }
   }
 
   return (
@@ -229,6 +260,29 @@ export default function RecipeClient({ ingredients }: { ingredients: Ingredient[
             </div>
           </div>
 
+          {/* Useful links */}
+          {selectedRecipe.useful_links && selectedRecipe.useful_links.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+                <h2 className="text-base font-bold text-slate-800">Link utili</h2>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {selectedRecipe.useful_links.map((link, i) => (
+                  <a
+                    key={i}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors"
+                  >
+                    <span className="text-sm font-medium text-olive-700">{link.label}</span>
+                    <ExternalLink className="w-4 h-4 text-slate-400" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Eco impact */}
           <div className="bg-olive-50 rounded-2xl border border-olive-200 px-5 py-4 flex items-start gap-3">
             <Leaf className="w-5 h-5 text-olive-600 shrink-0 mt-0.5" />
@@ -237,6 +291,43 @@ export default function RecipeClient({ ingredients }: { ingredients: Ingredient[
               <p className="text-sm text-olive-700">{selectedRecipe.zero_waste_reason}</p>
             </div>
           </div>
+
+          {/* Cook button + result */}
+          {cookResult ? (
+            <div className="bg-emerald-50 rounded-2xl border border-emerald-200 px-5 py-4">
+              <p className="text-sm font-bold text-emerald-800 mb-2">Buon appetito! Frigo aggiornato:</p>
+              <ul className="space-y-1">
+                {cookResult.used.map((item, i) => (
+                  <li key={i} className="text-sm text-emerald-700">
+                    {item.removed
+                      ? `${item.name} — rimosso completamente`
+                      : `${item.name} — usato ${item.subtracted} ${item.unit}`}
+                  </li>
+                ))}
+              </ul>
+              {cookResult.used.length === 0 && (
+                <p className="text-sm text-emerald-600">Nessun ingrediente del frigo è stato usato.</p>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={handleCooked}
+              disabled={cooking}
+              className="w-full bg-olive-600 text-white rounded-2xl py-4 font-semibold shadow-lg hover:bg-olive-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {cooking ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Aggiorno il frigo...
+                </>
+              ) : (
+                <>
+                  <CookingPot className="w-5 h-5" />
+                  Ho cucinato questa!
+                </>
+              )}
+            </button>
+          )}
         </div>
       ) : recipes.length > 0 ? (
         /* Recipe selection — 3 cards */

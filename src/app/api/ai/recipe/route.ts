@@ -27,6 +27,14 @@ ${dietConstraint}
 
 Le 3 ricette devono essere diverse per tipo (es: un primo, un secondo, uno sfizioso) e difficoltà.
 
+IMPORTANTE per i passaggi di preparazione (quick_steps):
+- Scrivi ogni step come se l'utente non avesse esperienza in cucina.
+- Specifica temperature esatte del fornello/forno, tempi precisi, e segnali visivi (es. "quando i bordi diventano dorati").
+- Indica quantità precise (es. "2 cucchiai di olio extravergine", non "un filo d'olio").
+- Numera ogni step chiaramente.
+
+Per ogni ricetta, includi 1-2 link a risorse esterne REALI e pertinenti (YouTube italiano, GialloZafferano, Fatto in Casa da Benedetta, etc.) che mostrino tecniche simili o la stessa ricetta. I link devono essere URL reali e verificabili a pagine che esistono davvero su quei siti.
+
 Rispondi SOLO con un JSON valido:
 {
   "recipes": [
@@ -37,9 +45,13 @@ Rispondi SOLO con un JSON valido:
       "prep_time_minutes": 20,
       "difficulty": "Facile|Media|Avanzata",
       "ingredients": ["200g pasta", "2 uova", "100g pancetta"],
-      "quick_steps": ["Passo 1", "Passo 2", "Passo 3"],
+      "quick_steps": ["1. Descrizione dettagliata con tempi e quantità precise", "2. ..."],
       "eco_impact_kg": 0.8,
-      "zero_waste_reason": "Usa le uova che scadono domani"
+      "zero_waste_reason": "Usa le uova che scadono domani",
+      "useful_links": [
+        {"label": "Video tutorial", "url": "https://..."},
+        {"label": "Ricetta completa", "url": "https://..."}
+      ]
     }
   ]
 }
