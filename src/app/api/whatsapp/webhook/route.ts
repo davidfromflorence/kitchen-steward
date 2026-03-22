@@ -573,14 +573,83 @@ export async function POST(request: Request) {
       return twiml('Completa la configurazione su Kitchen Steward prima di usare la chat.')
     }
 
-    // Media — instant response
+    // Media handling
     if (numMedia > 0) {
       const mediaType = (formData.get('MediaContentType0') as string) || ''
       if (mediaType.startsWith('audio/')) {
         return twiml('🎤 I vocali non sono ancora supportati. Scrivimi il messaggio!' + MENU_DEFAULT)
       }
       if (mediaType.startsWith('image/')) {
-        return twiml('📷 Le foto non sono ancora supportate. Scrivimi cosa hai comprato!' + MENU_DEFAULT)
+        const mediaUrl = formData.get('MediaUrl0') as string
+        if (mediaUrl) {
+          try {
+            // Download image from Twilio
+            const imgRes = await fetch(mediaUrl, {
+              headers: { Authorization: twilioAuth() },
+            })
+            const imgBuffer = await imgRes.arrayBuffer()
+            const imgBase64 = Buffer.from(imgBuffer).toString('base64')
+
+            // Extract items from receipt/photo using Gemini multimodal
+            const extractResult = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: [{
+                role: 'user',
+                parts: [
+                  { inlineData: { mimeType: mediaType, data: imgBase64 } },
+                  { text: `Analizza questa foto. Se è uno scontrino o una lista della spesa, estrai TUTTI i prodotti alimentari acquistati.
+
+Per ogni prodotto, stima:
+- name: nome del prodotto in italiano (singolare, es. "Pollo" non "POLLO ARR.COSC S/O")
+- qty: quantità (numero intero, default 1)
+- unit: unità (pz, kg, g, litri, ml)
+- category: una tra Protein, Vegetable, Fruit, Dairy, Carbohydrate, Condiment, General
+
+IGNORA prodotti non alimentari (sacchetti, sconti, totali, IVA).
+
+Rispondi SOLO con un JSON array valido. Se la foto non è uno scontrino/lista, rispondi con [].
+Esempio: [{"name":"Pollo","qty":1,"unit":"kg","category":"Protein"}]` },
+                ],
+              }],
+            })
+
+            const raw = extractResult.text?.replace(/```json\n?|\n?```/g, '').trim() || '[]'
+            const items: Array<{ name: string; qty: number; unit: string; category: string }> = JSON.parse(raw)
+
+            if (items.length === 0) {
+              return twiml('📷 Non ho trovato prodotti alimentari in questa foto. Prova con una foto più nitida dello scontrino!' + MENU_DEFAULT)
+            }
+
+            // Add items to fridge
+            const { calculateExpiryDate: calcExpiry, defaultZone: defZone } = await import('@/lib/shelf-life')
+            const rows = items.map((item) => {
+              const category = item.category || 'General'
+              const zone = defZone(category)
+              return {
+                household_id: user.household_id,
+                name: item.name,
+                quantity: item.qty || 1,
+                unit: item.unit || 'pz',
+                category,
+                zone,
+                expiry_date: calcExpiry(item.name, category, zone),
+              }
+            })
+            await supabase.from('inventory_items').insert(rows)
+
+            const userName = (await supabase.from('users').select('full_name').eq('id', user.id).single()).data?.full_name?.split(' ')[0] || ''
+            const itemList = items.map((i) => `  • ${i.qty} ${i.unit} ${i.name}`).join('\n')
+            const reply = `🧾 Scontrino letto! Ho aggiunto *${items.length} prodotti* al frigo:\n\n${itemList}\n\n✅ Tutto aggiornato, ${userName}!` + MENU_DEFAULT
+
+            notifyFamily(supabase, user.household_id, user.id, `🛒 ${userName} ha aggiunto ${items.length} prodotti dallo scontrino`)
+            addToHistory(phoneNumber, 'user', '[foto scontrino]')
+            addToHistory(phoneNumber, 'assistant', reply)
+            return twiml(reply)
+          } catch (e) {
+            console.error('Receipt scan error:', e)
+            return twiml('📷 Non sono riuscito a leggere la foto. Prova con una più nitida o scrivimi cosa hai comprato!' + MENU_DEFAULT)
+          }
+        }
       }
     }
 
