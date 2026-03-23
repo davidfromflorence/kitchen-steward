@@ -101,7 +101,14 @@ Rispondimi e aggiorno il frigo!
 Es: "pasta al pesto", "insalata di pollo", "ho mangiato fuori"${expiringHint}`
 
     const ok = await sendWhatsApp(user.whatsapp_number, message)
-    if (ok) sent++
+    if (ok) {
+      sent++
+      // Save context so the webhook knows the next reply is a meal answer
+      await supabase
+        .from('users')
+        .update({ pending_meal_checkin: mealLabel })
+        .eq('id', user.id)
+    }
   }
 
   return NextResponse.json({ message: `${mealLabel} check-in sent`, sent })

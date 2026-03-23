@@ -62,7 +62,7 @@ interface ConversationEntry {
 }
 
 const conversations = new Map<string, ConversationEntry[]>()
-const MEMORY_TTL = 15 * 60 * 1000 // 15 minutes
+const MEMORY_TTL = 60 * 60 * 1000 // 60 minutes
 const MAX_HISTORY = 6 // 3 exchanges
 
 function getHistory(phone: string): ConversationEntry[] {
@@ -562,7 +562,7 @@ export async function POST(request: Request) {
 
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, household_id')
+      .select('id, household_id, pending_meal_checkin')
       .eq('whatsapp_number', phoneNumber)
       .single()
 
@@ -657,11 +657,27 @@ Formato: [{"name":"Pollo","qty":0.5,"unit":"kg","category":"Protein"}]` },
 
     if (!body) return twiml('Scrivimi qualcosa!' + MENU_DEFAULT)
 
+    // Check if this is a reply to a meal check-in
+    const pendingMeal = user.pending_meal_checkin
+    let effectiveBody = body
+
+    if (pendingMeal) {
+      // Clear the pending flag immediately
+      await supabase.from('users').update({ pending_meal_checkin: null }).eq('id', user.id)
+
+      // Unless the user is asking something else (greeting, help, fridge), treat as meal answer
+      const quickIntent = detectFastIntent(body)
+      if (quickIntent.type === 'ai_needed') {
+        // Prefix the message with meal context so Gemini knows to subtract
+        effectiveBody = `Ho mangiato per ${pendingMeal}: ${body}`
+      }
+    }
+
     // Save user message to history
-    addToHistory(phoneNumber, 'user', body)
+    addToHistory(phoneNumber, 'user', effectiveBody)
 
     // Fast path — no Gemini needed (~1-2s)
-    const intent = detectFastIntent(body)
+    const intent = detectFastIntent(effectiveBody)
     let reply: string
 
     switch (intent.type) {
@@ -689,7 +705,7 @@ Formato: [{"name":"Pollo","qty":0.5,"unit":"kg","category":"Protein"}]` },
         reply = HELP_TEXT
         break
       case 'ai_needed':
-        reply = await handleWithAI(supabase, user.household_id, user.id, body, phoneNumber)
+        reply = await handleWithAI(supabase, user.household_id, user.id, effectiveBody, phoneNumber)
         break
       default:
         reply = 'Non ho capito. Scrivi "aiuto" per le istruzioni.'
