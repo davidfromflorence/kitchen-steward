@@ -597,18 +597,20 @@ export async function POST(request: Request) {
                 role: 'user',
                 parts: [
                   { inlineData: { mimeType: mediaType, data: imgBase64 } },
-                  { text: `Analizza questa foto. Se è uno scontrino o una lista della spesa, estrai TUTTI i prodotti alimentari acquistati.
+                  { text: `Analizza questa foto. Se è uno scontrino o una lista della spesa, estrai TUTTI i prodotti ALIMENTARI acquistati.
 
-Per ogni prodotto, stima:
-- name: nome del prodotto in italiano (singolare, es. "Pollo" non "POLLO ARR.COSC S/O")
-- qty: quantità (numero intero, default 1)
-- unit: unità (pz, kg, g, litri, ml)
-- category: una tra Protein, Vegetable, Fruit, Dairy, Carbohydrate, Condiment, General
-
-IGNORA prodotti non alimentari (sacchetti, sconti, totali, IVA).
+REGOLE IMPORTANTI:
+- IGNORA prodotti non alimentari (sacchetti, sconti, totali, IVA, carte fedeltà)
+- Usa nomi PULITI in italiano: "Latte" non "LATTE PS UHT 1LT", "Pollo" non "PETT.POLL.SENZA OSSO"
+- Usa UNITÀ REALISTICHE:
+  * Latte, succhi, olio: usa "litri" o "ml" (es. 1 litri, 500 ml). MAI "pz" per liquidi.
+  * Carne, formaggio, verdure a peso: usa "kg" o "g" (es. 0.5 kg, 300 g)
+  * Uova, pane, prodotti confezionati: usa "pz" con conteggio reale
+  * Pasta, riso, biscotti in scatola: usa "g" con il peso dallo scontrino
+- Leggi peso/volume dalla descrizione sullo scontrino quando visibile (es. "1LT" = 1 litri)
 
 Rispondi SOLO con un JSON array valido. Se la foto non è uno scontrino/lista, rispondi con [].
-Esempio: [{"name":"Pollo","qty":1,"unit":"kg","category":"Protein"}]` },
+Formato: [{"name":"Pollo","qty":0.5,"unit":"kg","category":"Protein"}]` },
                 ],
               }],
             })

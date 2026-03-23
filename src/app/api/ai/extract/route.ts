@@ -21,14 +21,25 @@ export async function POST(request: Request) {
   const isReceipt = !!imageBase64
 
   const prompt = isReceipt
-    ? `You are a kitchen inventory assistant. Analyze this receipt/photo and extract all grocery items purchased.
-For each item, estimate how many days until it expires based on typical shelf life.
-Return ONLY a JSON array of objects with these fields:
+    ? `You are a kitchen inventory assistant. Analyze this receipt/photo and extract all FOOD items purchased.
+
+IMPORTANT RULES:
+- IGNORE non-food items (bags, discounts, totals, VAT, loyalty cards, etc.)
+- Use CLEAN Italian names: "Latte" not "LATTE PS UHT 1LT", "Pollo" not "PETT.POLL.SENZA OSSO"
+- Use REALISTIC units and quantities:
+  * Milk, juice, oil: use "litri" or "ml" (e.g. 1 litri, 500 ml). NEVER "pz" for liquids.
+  * Meat, cheese, vegetables sold by weight: use "kg" or "g" (e.g. 0.5 kg, 300 g)
+  * Eggs, bread, packaged items: use "pz" with actual count (e.g. 6 pz for eggs)
+  * Pasta, rice, cookies in boxes: use "g" with weight from receipt (e.g. 500 g)
+- Read the weight/volume from the receipt description when visible (e.g. "1LT" = 1 litri, "500G" = 500 g)
+- If the receipt shows a price-per-kg line, use that to calculate the actual weight purchased
+
+Return ONLY a JSON array:
 - action: "add"
-- name: item name (in the language visible on the receipt, or Italian if unclear)
-- qty: number (quantity purchased)
-- unit: one of "pz", "kg", "g", "litri", "ml", "scatole"
-- estimated_expiry_days: integer (estimate based on typical shelf life for this product)
+- name: clean Italian name (capitalize first letter only)
+- qty: number (realistic quantity with correct unit)
+- unit: one of "pz", "kg", "g", "litri", "ml"
+- estimated_expiry_days: integer (typical shelf life)
 - category: one of "Protein", "Vegetable", "Fruit", "Dairy", "Carbohydrate", "Condiment", "General"
 
 Return ONLY valid JSON, no markdown.`

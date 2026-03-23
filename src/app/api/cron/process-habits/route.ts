@@ -47,6 +47,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'No habits to process', processed: 0 })
   }
 
+  // Unit conversion table — everything normalized to a base unit
+  const unitToBase: Record<string, { base: string; factor: number }> = {
+    'ml': { base: 'ml', factor: 1 },
+    'litri': { base: 'ml', factor: 1000 },
+    'l': { base: 'ml', factor: 1000 },
+    'g': { base: 'g', factor: 1 },
+    'kg': { base: 'g', factor: 1000 },
+    'pz': { base: 'pz', factor: 1 },
+    'scatole': { base: 'pz', factor: 1 },
+  }
+
+  function convertToBase(qty: number, unit: string): { qty: number; base: string } | null {
+    const conv = unitToBase[unit.toLowerCase()]
+    if (!conv) return null
+    return { qty: qty * conv.factor, base: conv.base }
+  }
+
+  function convertFromBase(qty: number, unit: string): number {
+    const conv = unitToBase[unit.toLowerCase()]
+    if (!conv) return qty
+    return qty / conv.factor
+  }
+
   let processed = 0
 
   for (const habit of habits) {
@@ -91,13 +114,27 @@ export async function GET(request: Request) {
         continue
       }
 
-      const newQty = match.quantity - totalSubtract
+      // Convert both to base units and check compatibility
+      const habitBase = convertToBase(totalSubtract, item.unit)
+      const invBase = convertToBase(Number(match.quantity), match.unit)
+
+      if (!habitBase || !invBase || habitBase.base !== invBase.base) {
+        // Units are incompatible (e.g. subtracting ml from pz) — skip, don't destroy data
+        console.log(`[HABITS] Skipping ${item.name}: incompatible units (habit: ${item.unit}, inventory: ${match.unit})`)
+        subtracted.push(`${match.name} (unità diverse, non sottratto)`)
+        continue
+      }
+
+      const newBaseQty = invBase.qty - habitBase.qty
+      const newQty = convertFromBase(newBaseQty, match.unit)
+
       if (newQty <= 0) {
         await supabase.from('inventory_items').delete().eq('id', match.id)
         subtracted.push(`${match.name} (finito!)`)
         outOfStock.push(match.name) // Will need to buy more
       } else {
-        await supabase.from('inventory_items').update({ quantity: newQty }).eq('id', match.id)
+        const rounded = Math.round(newQty * 100) / 100
+        await supabase.from('inventory_items').update({ quantity: rounded }).eq('id', match.id)
         subtracted.push(`${match.name} -${totalSubtract}${item.unit}`)
       }
     }
